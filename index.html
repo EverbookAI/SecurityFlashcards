@@ -1,0 +1,1860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#2764e7">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Flashcards">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <title>Security Flashcards</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f7f8fb;
+      --surface: #ffffff;
+      --surface-2: #eef2f7;
+      --text: #161b24;
+      --muted: #64748b;
+      --line: #dbe2ea;
+      --primary: #2764e7;
+      --primary-strong: #1746ad;
+      --danger: #d03939;
+      --success: #168456;
+      --warning: #b86b00;
+      --shadow: 0 18px 45px rgba(25, 35, 55, 0.1);
+      --radius: 8px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button,
+    input,
+    textarea,
+    select {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.58;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 320px minmax(0, 1fr);
+    }
+
+    .sidebar {
+      background: #111827;
+      color: #f8fafc;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 1.35rem;
+      letter-spacing: 0;
+    }
+
+    .deck-form,
+    .search-box {
+      display: flex;
+      gap: 8px;
+    }
+
+    .sidebar input {
+      width: 100%;
+      min-width: 0;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+      border-radius: var(--radius);
+      padding: 11px 12px;
+      outline: none;
+    }
+
+    .sidebar input::placeholder {
+      color: rgba(248, 250, 252, 0.58);
+    }
+
+    .icon-btn,
+    .primary-btn,
+    .secondary-btn,
+    .danger-btn,
+    .success-btn,
+    .ghost-btn,
+    .text-btn {
+      min-height: 42px;
+      border-radius: var(--radius);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 0 14px;
+      font-weight: 700;
+      transition: transform 0.16s ease, background 0.16s ease, border 0.16s ease;
+    }
+
+    .icon-btn {
+      width: 42px;
+      padding: 0;
+      flex: 0 0 auto;
+      background: rgba(255, 255, 255, 0.14);
+      color: #fff;
+    }
+
+    .icon-btn:hover,
+    .primary-btn:hover,
+    .secondary-btn:hover,
+    .danger-btn:hover,
+    .success-btn:hover,
+    .ghost-btn:hover,
+    .text-btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .primary-btn {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .primary-btn:hover {
+      background: var(--primary-strong);
+    }
+
+    .secondary-btn {
+      background: var(--surface-2);
+      color: var(--text);
+      border: 1px solid var(--line);
+    }
+
+    .danger-btn {
+      background: #fff0f0;
+      color: var(--danger);
+      border: 1px solid #fac5c5;
+    }
+
+    .success-btn {
+      background: #eaf8f1;
+      color: var(--success);
+      border: 1px solid #bce8d3;
+    }
+
+    .ghost-btn {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--line);
+    }
+
+    .text-btn {
+      min-height: 34px;
+      padding: 0 10px;
+      color: var(--primary);
+      background: transparent;
+    }
+
+    .deck-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      overflow: auto;
+      padding-right: 2px;
+    }
+
+    .deck-item {
+      width: 100%;
+      text-align: left;
+      background: rgba(255, 255, 255, 0.08);
+      color: #f8fafc;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: var(--radius);
+      padding: 13px;
+      cursor: pointer;
+    }
+
+    .deck-main {
+      width: 100%;
+      display: block;
+      padding: 0;
+      background: transparent;
+      color: inherit;
+      text-align: left;
+    }
+
+    .deck-item.active {
+      background: #fff;
+      color: #111827;
+      border-color: #fff;
+    }
+
+    .deck-main:focus-visible,
+    .deck-item:focus-visible {
+      outline: 3px solid rgba(39, 100, 231, 0.35);
+      outline-offset: 2px;
+    }
+
+    .deck-name {
+      display: block;
+      font-weight: 800;
+      overflow-wrap: anywhere;
+    }
+
+    .deck-meta {
+      display: block;
+      color: inherit;
+      opacity: 0.64;
+      font-size: 0.86rem;
+      margin-top: 4px;
+    }
+
+    .deck-actions {
+      display: none;
+    }
+
+    .mobile-deck-details {
+      display: none;
+    }
+
+    .main {
+      min-width: 0;
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+    }
+
+    .title-block h2 {
+      margin: 0;
+      font-size: clamp(1.6rem, 3vw, 2.25rem);
+      overflow-wrap: anywhere;
+    }
+
+    .title-block p {
+      margin: 7px 0 0;
+      color: var(--muted);
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .stat {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 15px;
+      box-shadow: 0 8px 22px rgba(17, 24, 39, 0.04);
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 1.4rem;
+    }
+
+    .stat span {
+      color: var(--muted);
+      font-size: 0.87rem;
+    }
+
+    .study-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(300px, 0.9fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .study-panel,
+    .editor-panel,
+    .import-panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .study-panel {
+      padding: 18px;
+    }
+
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .toggle-row,
+    .nav-row,
+    .grade-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .switch {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      color: var(--muted);
+      font-weight: 700;
+      user-select: none;
+    }
+
+    .switch input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--primary);
+    }
+
+    .card-stage {
+      perspective: 1200px;
+      min-height: 330px;
+      margin: 12px 0 16px;
+    }
+
+    .flashcard {
+      width: 100%;
+      min-height: 330px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: transparent;
+      padding: 0;
+      display: block;
+      position: relative;
+    }
+
+    .flashcard-inner {
+      min-height: 330px;
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform 0.42s ease;
+    }
+
+    .flashcard.flipped .flashcard-inner {
+      transform: rotateY(180deg);
+    }
+
+    .card-face {
+      position: absolute;
+      inset: 0;
+      padding: clamp(22px, 4vw, 42px);
+      border-radius: var(--radius);
+      backface-visibility: hidden;
+      background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      overflow: auto;
+    }
+
+    .card-face.definition {
+      transform: rotateY(180deg);
+      background: linear-gradient(135deg, #fff 0%, #f4fbf7 100%);
+    }
+
+    .face-label {
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+
+    .face-text {
+      max-width: 780px;
+      font-size: clamp(1.35rem, 4vw, 2.35rem);
+      line-height: 1.25;
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
+    }
+
+    .card-empty {
+      min-height: 330px;
+      border: 1px dashed var(--line);
+      border-radius: var(--radius);
+      display: grid;
+      place-items: center;
+      text-align: center;
+      color: var(--muted);
+      padding: 24px;
+    }
+
+    .progress-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--muted);
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .progress-track {
+      height: 9px;
+      border-radius: 999px;
+      background: var(--surface-2);
+      overflow: hidden;
+      margin-bottom: 14px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--primary);
+      transition: width 0.2s ease;
+    }
+
+    .editor-panel,
+    .import-panel {
+      padding: 18px;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .panel-header h3 {
+      margin: 0;
+      font-size: 1.05rem;
+    }
+
+    .field-grid {
+      display: grid;
+      gap: 10px;
+    }
+
+    .field label {
+      display: block;
+      color: var(--muted);
+      font-size: 0.84rem;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+
+    .field input,
+    .field textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 11px 12px;
+      color: var(--text);
+      outline: none;
+      background: #fff;
+    }
+
+    .field textarea {
+      min-height: 96px;
+      resize: vertical;
+    }
+
+    .field input:focus,
+    .field textarea:focus,
+    .sidebar input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(39, 100, 231, 0.15);
+    }
+
+    .form-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .cards-list {
+      display: grid;
+      gap: 10px;
+      margin-top: 16px;
+      max-height: 460px;
+      overflow: auto;
+      padding-right: 2px;
+    }
+
+    .card-row {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 12px;
+      display: grid;
+      gap: 9px;
+      background: #fff;
+    }
+
+    .card-row strong,
+    .card-row span {
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
+    }
+
+    .card-row span {
+      color: var(--muted);
+    }
+
+    .row-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
+    .import-panel {
+      display: none;
+    }
+
+    .import-panel.open {
+      display: block;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin: 8px 0 0;
+    }
+
+    .toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      max-width: min(360px, calc(100vw - 36px));
+      background: #111827;
+      color: #fff;
+      border-radius: var(--radius);
+      padding: 13px 15px;
+      box-shadow: var(--shadow);
+      opacity: 0;
+      transform: translateY(10px);
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      z-index: 20;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .mobile-deck-toggle {
+      display: none;
+    }
+
+    .bottom-nav {
+      display: none;
+    }
+
+    @media (max-width: 980px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        display: none;
+      }
+
+      .sidebar.open {
+        display: flex;
+      }
+
+      .mobile-deck-toggle {
+        display: inline-flex;
+      }
+
+      .main {
+        padding: 18px;
+      }
+
+      .study-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 620px) {
+      .topbar,
+      .toolbar,
+      .panel-header {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .topbar {
+        gap: 6px;
+      }
+
+      .actions,
+      .toolbar .toggle-row,
+      .nav-row,
+      .grade-row,
+      .form-actions {
+        width: 100%;
+      }
+
+      .actions > *,
+      .nav-row > *,
+      .grade-row > *,
+      .form-actions > * {
+        flex: 1 1 auto;
+      }
+
+      .stats {
+        grid-template-columns: 1fr;
+      }
+
+      .card-stage,
+      .flashcard,
+      .flashcard-inner,
+      .card-empty {
+        min-height: 285px;
+      }
+
+      .face-text {
+        font-size: clamp(1.2rem, 7vw, 1.8rem);
+      }
+    }
+
+    @media (max-width: 720px) {
+      body {
+        background: #f4f6fb;
+      }
+
+      .app {
+        display: block;
+        min-height: 100dvh;
+        padding-bottom: calc(96px + env(safe-area-inset-bottom));
+      }
+
+      .sidebar {
+        display: none;
+        min-height: calc(100dvh - 76px - env(safe-area-inset-bottom));
+        background: #f4f6fb;
+        color: var(--text);
+        padding: calc(14px + env(safe-area-inset-top)) 18px 18px;
+      }
+
+      body[data-mobile-view="decks"] .sidebar {
+        display: flex;
+      }
+
+      body[data-mobile-view="decks"] .main {
+        display: none;
+      }
+
+      .brand h1 {
+        font-size: 1.6rem;
+      }
+
+      .sidebar input {
+        min-height: 52px;
+        border-color: var(--line);
+        background: #fff;
+        color: var(--text);
+        font-size: 1rem;
+      }
+
+      .sidebar input::placeholder {
+        color: var(--muted);
+      }
+
+      .deck-item {
+        min-height: 74px;
+        background: #fff;
+        color: var(--text);
+        border-color: var(--line);
+        box-shadow: 0 8px 22px rgba(17, 24, 39, 0.05);
+      }
+
+      .deck-item.active {
+        background: #eef4ff;
+        border-color: #9bb9ff;
+        color: var(--text);
+      }
+
+      .deck-actions {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+        margin-top: 14px;
+        padding-top: 12px;
+        border-top: 1px solid var(--line);
+      }
+
+      .deck-actions button {
+        min-height: 46px;
+        border-radius: var(--radius);
+        font-weight: 800;
+        font-size: 0.86rem;
+        padding: 0 8px;
+      }
+
+      .deck-study-btn {
+        background: var(--primary);
+        color: #fff;
+      }
+
+      .deck-rename-btn {
+        background: var(--surface-2);
+        color: var(--text);
+        border: 1px solid var(--line);
+      }
+
+      .deck-delete-btn {
+        background: #fff0f0;
+        color: var(--danger);
+        border: 1px solid #fac5c5;
+      }
+
+      .mobile-deck-details {
+        display: block;
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 16px;
+        box-shadow: 0 12px 30px rgba(17, 24, 39, 0.08);
+      }
+
+      .mobile-deck-details h2 {
+        margin: 0;
+        font-size: 1.35rem;
+        line-height: 1.15;
+        overflow-wrap: anywhere;
+      }
+
+      .mobile-deck-details p {
+        margin: 7px 0 14px;
+        color: var(--muted);
+        font-weight: 700;
+      }
+
+      .mobile-detail-actions {
+        display: grid;
+        gap: 10px;
+      }
+
+      .mobile-detail-actions button {
+        width: 100%;
+        min-height: 52px;
+        border-radius: var(--radius);
+        font-weight: 800;
+        font-size: 1rem;
+      }
+
+      .icon-btn {
+        width: 52px;
+        min-height: 52px;
+        background: var(--primary);
+      }
+
+      .main {
+        min-height: calc(100dvh - 76px - env(safe-area-inset-bottom));
+        padding: calc(10px + env(safe-area-inset-top)) 14px calc(18px + env(safe-area-inset-bottom));
+        gap: 10px;
+      }
+
+      .topbar,
+      .toolbar,
+      .panel-header {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .mobile-deck-toggle,
+      .actions {
+        display: none;
+      }
+
+      .title-block h2 {
+        font-size: 1.28rem;
+        line-height: 1.15;
+      }
+
+      .title-block p {
+        font-size: 0.86rem;
+        margin-top: 4px;
+      }
+
+      .stats {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .stat {
+        padding: 8px 9px;
+        box-shadow: none;
+      }
+
+      .stat:nth-child(4) {
+        display: none;
+      }
+
+      .stat strong {
+        font-size: 1rem;
+        line-height: 1.1;
+      }
+
+      .stat span {
+        font-size: 0.72rem;
+      }
+
+      .study-layout {
+        display: block;
+      }
+
+      .study-panel,
+      .editor-panel,
+      .import-panel {
+        border: 0;
+        box-shadow: none;
+        background: transparent;
+        padding: 0;
+      }
+
+      .study-panel {
+        padding-bottom: calc(10px + env(safe-area-inset-bottom));
+      }
+
+      body[data-mobile-view="study"] .editor-panel,
+      body[data-mobile-view="study"] .import-panel,
+      body[data-mobile-view="add"] .study-panel,
+      body[data-mobile-view="add"] .import-panel,
+      body[data-mobile-view="import"] .study-panel,
+      body[data-mobile-view="import"] .editor-panel {
+        display: none;
+      }
+
+      body[data-mobile-view="add"] .stats,
+      body[data-mobile-view="import"] .stats {
+        display: none;
+      }
+
+      body[data-mobile-view="import"] .import-panel {
+        display: block;
+      }
+
+      .toolbar {
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+
+      .progress-line {
+        margin-bottom: 7px;
+        font-size: 0.88rem;
+      }
+
+      .progress-track {
+        height: 7px;
+        margin-bottom: 8px;
+      }
+
+      .toggle-row {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .switch {
+        min-height: 42px;
+        justify-content: center;
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        color: var(--text);
+      }
+
+      .switch input {
+        width: 21px;
+        height: 21px;
+      }
+
+      .primary-btn,
+      .secondary-btn,
+      .danger-btn,
+      .success-btn,
+      .ghost-btn {
+        min-height: 48px;
+        font-size: 1rem;
+      }
+
+      .card-stage,
+      .flashcard,
+      .flashcard-inner,
+      .card-empty {
+        min-height: clamp(320px, 43dvh, 410px);
+      }
+
+      .card-stage {
+        margin: 8px 0 10px;
+        overflow: visible;
+      }
+
+      .flashcard {
+        border: 0;
+        border-radius: 18px;
+        box-shadow: 0 18px 48px rgba(23, 35, 63, 0.14);
+        overflow: visible;
+      }
+
+      .flashcard-inner {
+        display: block;
+        width: 100%;
+        min-height: inherit;
+      }
+
+      .card-face {
+        border-radius: 18px;
+        padding: 22px 24px;
+        justify-content: center;
+        align-items: center;
+        min-height: inherit;
+        overflow: visible;
+      }
+
+      .face-label {
+        font-size: 0.76rem;
+        margin-bottom: 12px;
+      }
+
+      .face-text {
+        display: block;
+        width: 100%;
+        max-width: none;
+        font-size: clamp(28px, 8vw, 40px);
+        line-height: 1.18;
+        font-weight: 750;
+        text-align: center;
+        overflow-wrap: break-word;
+        word-break: normal;
+        hyphens: auto;
+        transform: none;
+      }
+
+      .nav-row {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 7px;
+      }
+
+      .grade-row {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        margin-top: 6px !important;
+      }
+
+      .field textarea,
+      .field input {
+        min-height: 52px;
+        font-size: 1rem;
+        background: #fff;
+      }
+
+      .field textarea {
+        min-height: 128px;
+      }
+
+      .cards-list {
+        max-height: none;
+        padding-bottom: 8px;
+      }
+
+      .card-row {
+        padding: 14px;
+      }
+
+      .bottom-nav {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 30;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 4px;
+        padding: 6px 10px calc(6px + env(safe-area-inset-bottom));
+        background: rgba(255, 255, 255, 0.94);
+        border-top: 1px solid var(--line);
+        backdrop-filter: blur(18px);
+      }
+
+      .bottom-nav button {
+        min-height: 54px;
+        border-radius: 14px;
+        background: transparent;
+        color: var(--muted);
+        font-weight: 800;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        font-size: 0.78rem;
+      }
+
+      .bottom-nav button span:first-child {
+        font-size: 1.25rem;
+        line-height: 1;
+      }
+
+      .bottom-nav button.active {
+        background: #eef4ff;
+        color: var(--primary);
+      }
+
+      .toast {
+        bottom: calc(86px + env(safe-area-inset-bottom));
+      }
+    }
+
+    @media (max-width: 720px) and (min-height: 880px) {
+      .card-stage,
+      .flashcard,
+      .flashcard-inner,
+      .card-empty {
+        min-height: clamp(360px, 46dvh, 430px);
+      }
+    }
+
+    @media (max-width: 720px) and (max-height: 760px) {
+      .title-block p,
+      .stat span {
+        display: none;
+      }
+
+      .card-stage,
+      .flashcard,
+      .flashcard-inner,
+      .card-empty {
+        min-height: 300px;
+      }
+
+      .primary-btn,
+      .secondary-btn,
+      .danger-btn,
+      .success-btn,
+      .ghost-btn {
+        min-height: 46px;
+      }
+    }
+
+    @media (max-width: 380px) {
+      .primary-btn,
+      .secondary-btn,
+      .danger-btn,
+      .success-btn,
+      .ghost-btn {
+        padding: 0 10px;
+        font-size: 0.92rem;
+      }
+    }
+  </style>
+</head>
+<body data-mobile-view="study">
+  <div class="app">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <h1>Flashcards</h1>
+        <button class="icon-btn mobile-deck-toggle" id="closeDecksBtn" title="Close decks" aria-label="Close decks">x</button>
+      </div>
+
+      <form class="deck-form" id="deckForm">
+        <input id="deckNameInput" type="text" placeholder="New deck name" autocomplete="off" required>
+        <button class="icon-btn" title="Create deck" aria-label="Create deck">+</button>
+      </form>
+
+      <div class="search-box">
+        <input id="deckSearch" type="search" placeholder="Search decks">
+      </div>
+
+      <div class="deck-list" id="deckList" aria-label="Deck list"></div>
+      <section class="mobile-deck-details" id="mobileDeckDetails" aria-live="polite"></section>
+    </aside>
+
+    <main class="main">
+      <section class="topbar">
+        <button class="secondary-btn mobile-deck-toggle" id="openDecksBtn">Decks</button>
+        <div class="title-block">
+          <h2 id="activeDeckTitle">No deck selected</h2>
+          <p id="activeDeckSubtitle">Create a deck to get started.</p>
+        </div>
+        <div class="actions">
+          <button class="secondary-btn" id="renameDeckBtn">Rename</button>
+          <button class="secondary-btn" id="toggleImportBtn">Import</button>
+          <button class="danger-btn" id="deleteDeckBtn">Delete Deck</button>
+        </div>
+      </section>
+
+      <section class="stats" aria-label="Study stats">
+        <div class="stat"><strong id="totalCount">0</strong><span>Total cards</span></div>
+        <div class="stat"><strong id="knownCount">0</strong><span>Known</span></div>
+        <div class="stat"><strong id="missedCount">0</strong><span>Missed</span></div>
+        <div class="stat"><strong id="remainingCount">0</strong><span>In session</span></div>
+      </section>
+
+      <section class="import-panel" id="importPanel">
+        <div class="panel-header">
+          <h3>Import Cards</h3>
+          <button class="ghost-btn" id="clearImportBtn">Clear</button>
+        </div>
+        <div class="field">
+          <label for="importText">Paste term[TAB]definition, one card per line</label>
+          <textarea id="importText" placeholder="Port scanning&#9;A technique used to identify open ports on a host."></textarea>
+        </div>
+        <div class="form-actions">
+          <button class="primary-btn" id="importBtn">Import Cards</button>
+        </div>
+        <p class="hint">Blank lines are ignored. Lines without a tab are skipped.</p>
+      </section>
+
+      <section class="study-layout">
+        <div class="study-panel">
+          <div class="toolbar">
+            <div class="toggle-row">
+              <label class="switch"><input type="checkbox" id="shuffleToggle"> Shuffle</label>
+              <label class="switch"><input type="checkbox" id="missedToggle"> Review missed</label>
+            </div>
+            <button class="ghost-btn" id="resetProgressBtn">Reset Progress</button>
+          </div>
+
+          <div class="progress-line">
+            <span id="cardPosition">0 / 0</span>
+            <span id="studyModeLabel">All cards</span>
+          </div>
+          <div class="progress-track" aria-hidden="true">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+
+          <div class="card-stage" id="cardStage"></div>
+
+          <div class="nav-row">
+            <button class="secondary-btn" id="prevBtn">Previous</button>
+            <button class="secondary-btn" id="flipBtn">Flip</button>
+            <button class="secondary-btn" id="nextBtn">Next</button>
+          </div>
+          <div class="grade-row" style="margin-top: 8px;">
+            <button class="danger-btn" id="dontKnowBtn">Don't Know</button>
+            <button class="success-btn" id="knowBtn">Know</button>
+          </div>
+        </div>
+
+        <div class="editor-panel">
+          <div class="panel-header">
+            <h3 id="editorTitle">Add Card</h3>
+            <button class="text-btn" id="cancelEditBtn" type="button">Cancel</button>
+          </div>
+          <form id="cardForm" class="field-grid">
+            <div class="field">
+              <label for="termInput">Term</label>
+              <textarea id="termInput" required></textarea>
+            </div>
+            <div class="field">
+              <label for="definitionInput">Definition</label>
+              <textarea id="definitionInput" required></textarea>
+            </div>
+            <div class="form-actions">
+              <button class="primary-btn" id="saveCardBtn">Add Card</button>
+            </div>
+          </form>
+          <div class="cards-list" id="cardsList"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <nav class="bottom-nav" aria-label="Main navigation">
+    <button type="button" data-mobile-nav="decks"><span>□</span><span>Decks</span></button>
+    <button type="button" class="active" data-mobile-nav="study"><span>◫</span><span>Study</span></button>
+    <button type="button" data-mobile-nav="add"><span>＋</span><span>Add</span></button>
+    <button type="button" data-mobile-nav="import"><span>⇣</span><span>Import</span></button>
+  </nav>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const STORAGE_KEY = "quizletStyleFlashcards.v1";
+
+    const sampleDeck = {
+      id: crypto.randomUUID(),
+      name: "Security Basics",
+      cards: [
+        {
+          id: crypto.randomUUID(),
+          term: "CIA triad",
+          definition: "Confidentiality, integrity, and availability: three core goals of information security.",
+          status: "unseen"
+        },
+        {
+          id: crypto.randomUUID(),
+          term: "Phishing",
+          definition: "A social engineering attack that tricks people into revealing sensitive information or installing malware.",
+          status: "unseen"
+        },
+        {
+          id: crypto.randomUUID(),
+          term: "Least privilege",
+          definition: "Giving users and systems only the access they need to perform their work.",
+          status: "unseen"
+        }
+      ]
+    };
+
+    const state = {
+      decks: [],
+      activeDeckId: null,
+      activeCardId: null,
+      editingCardId: null,
+      isFlipped: false,
+      shuffle: false,
+      missedOnly: false,
+      sessionIds: []
+    };
+
+    const els = {
+      sidebar: document.getElementById("sidebar"),
+      openDecksBtn: document.getElementById("openDecksBtn"),
+      closeDecksBtn: document.getElementById("closeDecksBtn"),
+      deckForm: document.getElementById("deckForm"),
+      deckNameInput: document.getElementById("deckNameInput"),
+      deckSearch: document.getElementById("deckSearch"),
+      deckList: document.getElementById("deckList"),
+      mobileDeckDetails: document.getElementById("mobileDeckDetails"),
+      activeDeckTitle: document.getElementById("activeDeckTitle"),
+      activeDeckSubtitle: document.getElementById("activeDeckSubtitle"),
+      renameDeckBtn: document.getElementById("renameDeckBtn"),
+      deleteDeckBtn: document.getElementById("deleteDeckBtn"),
+      toggleImportBtn: document.getElementById("toggleImportBtn"),
+      importPanel: document.getElementById("importPanel"),
+      importText: document.getElementById("importText"),
+      importBtn: document.getElementById("importBtn"),
+      clearImportBtn: document.getElementById("clearImportBtn"),
+      totalCount: document.getElementById("totalCount"),
+      knownCount: document.getElementById("knownCount"),
+      missedCount: document.getElementById("missedCount"),
+      remainingCount: document.getElementById("remainingCount"),
+      shuffleToggle: document.getElementById("shuffleToggle"),
+      missedToggle: document.getElementById("missedToggle"),
+      resetProgressBtn: document.getElementById("resetProgressBtn"),
+      cardPosition: document.getElementById("cardPosition"),
+      studyModeLabel: document.getElementById("studyModeLabel"),
+      progressFill: document.getElementById("progressFill"),
+      cardStage: document.getElementById("cardStage"),
+      prevBtn: document.getElementById("prevBtn"),
+      flipBtn: document.getElementById("flipBtn"),
+      nextBtn: document.getElementById("nextBtn"),
+      dontKnowBtn: document.getElementById("dontKnowBtn"),
+      knowBtn: document.getElementById("knowBtn"),
+      editorTitle: document.getElementById("editorTitle"),
+      cancelEditBtn: document.getElementById("cancelEditBtn"),
+      cardForm: document.getElementById("cardForm"),
+      termInput: document.getElementById("termInput"),
+      definitionInput: document.getElementById("definitionInput"),
+      saveCardBtn: document.getElementById("saveCardBtn"),
+      cardsList: document.getElementById("cardsList"),
+      toast: document.getElementById("toast")
+    };
+    const navButtons = [...document.querySelectorAll("[data-mobile-nav]")];
+
+    function loadData() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) {
+        state.decks = [sampleDeck];
+        state.activeDeckId = sampleDeck.id;
+        saveData();
+        return;
+      }
+
+      try {
+        const parsed = JSON.parse(saved);
+        state.decks = Array.isArray(parsed.decks) ? parsed.decks : [sampleDeck];
+        state.activeDeckId = parsed.activeDeckId || state.decks[0]?.id || null;
+      } catch {
+        state.decks = [sampleDeck];
+        state.activeDeckId = sampleDeck.id;
+      }
+    }
+
+    function saveData() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        decks: state.decks,
+        activeDeckId: state.activeDeckId
+      }));
+    }
+
+    function getActiveDeck() {
+      return state.decks.find(deck => deck.id === state.activeDeckId) || null;
+    }
+
+    function getSessionCards() {
+      const deck = getActiveDeck();
+      if (!deck) return [];
+      return state.sessionIds
+        .map(id => deck.cards.find(card => card.id === id))
+        .filter(Boolean);
+    }
+
+    function currentCard() {
+      const cards = getSessionCards();
+      return cards.find(card => card.id === state.activeCardId) || cards[0] || null;
+    }
+
+    function rebuildSession(keepCardId = state.activeCardId) {
+      const deck = getActiveDeck();
+      const source = deck ? deck.cards.filter(card => !state.missedOnly || card.status === "missed") : [];
+      const ids = source.map(card => card.id);
+      state.sessionIds = state.shuffle ? shuffleArray(ids) : ids;
+      state.activeCardId = state.sessionIds.includes(keepCardId) ? keepCardId : state.sessionIds[0] || null;
+      state.isFlipped = false;
+    }
+
+    function shuffleArray(items) {
+      const copy = [...items];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function showToast(message) {
+      els.toast.textContent = message;
+      els.toast.classList.add("show");
+      window.clearTimeout(showToast.timeout);
+      showToast.timeout = window.setTimeout(() => els.toast.classList.remove("show"), 2300);
+    }
+
+    function render() {
+      const deck = getActiveDeck();
+      renderDecks();
+      renderMobileDeckDetails(deck);
+      renderHeader(deck);
+      renderStats(deck);
+      renderStudy(deck);
+      renderCardsList(deck);
+      syncControls(deck);
+      syncMobileNav();
+    }
+
+    function renderDecks() {
+      const query = els.deckSearch.value.trim().toLowerCase();
+      const decks = state.decks.filter(deck => deck.name.toLowerCase().includes(query));
+      els.deckList.innerHTML = decks.length ? decks.map(deck => `
+        <article class="deck-item ${deck.id === state.activeDeckId ? "active" : ""}">
+          <button class="deck-main" data-deck-id="${deck.id}" type="button">
+            <span class="deck-name">${escapeHtml(deck.name)}</span>
+            <span class="deck-meta">${deck.cards.length} card${deck.cards.length === 1 ? "" : "s"}</span>
+          </button>
+          <div class="deck-actions" aria-label="Deck actions">
+            <button class="deck-study-btn" data-study-deck="${deck.id}" type="button" aria-label="Study ${escapeHtml(deck.name)}">Study Deck</button>
+            <button class="deck-rename-btn" data-rename-deck="${deck.id}" type="button" aria-label="Rename ${escapeHtml(deck.name)}">Rename Deck</button>
+            <button class="deck-delete-btn" data-delete-deck="${deck.id}" type="button" aria-label="Delete ${escapeHtml(deck.name)}">Delete Deck</button>
+          </div>
+        </article>
+      `).join("") : `<div class="deck-item">No decks found.</div>`;
+    }
+
+    function renderMobileDeckDetails(deck) {
+      if (!deck) {
+        els.mobileDeckDetails.innerHTML = `
+          <h2>No deck selected</h2>
+          <p>Create or select a deck to manage it.</p>
+        `;
+        return;
+      }
+
+      els.mobileDeckDetails.innerHTML = `
+        <h2>${escapeHtml(deck.name)}</h2>
+        <p>${deck.cards.length} card${deck.cards.length === 1 ? "" : "s"}</p>
+        <div class="mobile-detail-actions">
+          <button class="deck-study-btn" data-study-deck="${deck.id}" type="button">Study Deck</button>
+          <button class="deck-rename-btn" data-rename-deck="${deck.id}" type="button">Rename Deck</button>
+          <button class="deck-delete-btn" data-delete-deck="${deck.id}" type="button">Delete Deck</button>
+        </div>
+      `;
+    }
+
+    function renderHeader(deck) {
+      els.activeDeckTitle.textContent = deck ? deck.name : "No deck selected";
+      els.activeDeckSubtitle.textContent = deck
+        ? "Click the card to flip it, then grade your recall."
+        : "Create a deck to get started.";
+    }
+
+    function renderStats(deck) {
+      const cards = deck?.cards || [];
+      const known = cards.filter(card => card.status === "known").length;
+      const missed = cards.filter(card => card.status === "missed").length;
+      els.totalCount.textContent = cards.length;
+      els.knownCount.textContent = known;
+      els.missedCount.textContent = missed;
+      els.remainingCount.textContent = state.sessionIds.length;
+    }
+
+    function renderStudy(deck) {
+      const cards = getSessionCards();
+      const card = currentCard();
+      const index = card ? cards.findIndex(item => item.id === card.id) : -1;
+      const position = index >= 0 ? index + 1 : 0;
+      const progress = cards.length ? (position / cards.length) * 100 : 0;
+
+      els.cardPosition.textContent = `${position} / ${cards.length}`;
+      els.studyModeLabel.textContent = state.missedOnly ? "Missed cards" : "All cards";
+      els.progressFill.style.width = `${progress}%`;
+
+      if (!deck) {
+        els.cardStage.innerHTML = `<div class="card-empty">Create a deck to begin studying.</div>`;
+        return;
+      }
+
+      if (!deck.cards.length) {
+        els.cardStage.innerHTML = `<div class="card-empty">Add or import cards to start this deck.</div>`;
+        return;
+      }
+
+      if (state.missedOnly && !cards.length) {
+        els.cardStage.innerHTML = `<div class="card-empty">No missed cards yet. Mark cards as Don't Know to review them here.</div>`;
+        return;
+      }
+
+      els.cardStage.innerHTML = `
+        <button class="flashcard ${state.isFlipped ? "flipped" : ""}" id="flashcard" aria-label="Flip card">
+          <span class="flashcard-inner">
+            <span class="card-face">
+              <span class="face-label">Term</span>
+              <span class="face-text">${escapeHtml(card.term)}</span>
+            </span>
+            <span class="card-face definition">
+              <span class="face-label">Definition</span>
+              <span class="face-text">${escapeHtml(card.definition)}</span>
+            </span>
+          </span>
+        </button>
+      `;
+    }
+
+    function renderCardsList(deck) {
+      if (!deck) {
+        els.cardsList.innerHTML = "";
+        return;
+      }
+
+      els.cardsList.innerHTML = deck.cards.length ? deck.cards.map(card => `
+        <article class="card-row">
+          <strong>${escapeHtml(card.term)}</strong>
+          <span>${escapeHtml(card.definition)}</span>
+          <div class="row-actions">
+            <button class="secondary-btn" data-edit-card="${card.id}" type="button">Edit</button>
+            <button class="danger-btn" data-delete-card="${card.id}" type="button">Delete</button>
+          </div>
+        </article>
+      `).join("") : `<div class="card-row"><span>No cards yet.</span></div>`;
+    }
+
+    function syncControls(deck) {
+      const hasDeck = Boolean(deck);
+      const hasSessionCards = state.sessionIds.length > 0;
+      const hasCards = Boolean(deck?.cards.length);
+      const card = currentCard();
+      const cards = getSessionCards();
+      const index = card ? cards.findIndex(item => item.id === card.id) : -1;
+
+      [
+        els.renameDeckBtn,
+        els.deleteDeckBtn,
+        els.toggleImportBtn,
+        els.importBtn,
+        els.clearImportBtn,
+        els.termInput,
+        els.definitionInput,
+        els.saveCardBtn,
+        els.shuffleToggle,
+        els.missedToggle,
+        els.resetProgressBtn
+      ].forEach(el => el.disabled = !hasDeck);
+
+      els.prevBtn.disabled = !hasSessionCards || index <= 0;
+      els.nextBtn.disabled = !hasSessionCards || index >= cards.length - 1;
+      els.flipBtn.disabled = !hasSessionCards;
+      els.knowBtn.disabled = !hasSessionCards;
+      els.dontKnowBtn.disabled = !hasSessionCards;
+      els.missedToggle.disabled = !hasDeck || !hasCards;
+      els.shuffleToggle.checked = state.shuffle;
+      els.missedToggle.checked = state.missedOnly;
+    }
+
+    function selectDeck(deckId) {
+      state.activeDeckId = deckId;
+      state.editingCardId = null;
+      resetCardForm();
+      rebuildSession(null);
+      saveData();
+      setMobileView("study");
+      render();
+      els.sidebar.classList.remove("open");
+    }
+
+    function manageDeck(deckId) {
+      state.activeDeckId = deckId;
+      state.editingCardId = null;
+      resetCardForm();
+      rebuildSession(null);
+      saveData();
+      setMobileView("decks");
+      render();
+    }
+
+    function renameDeck(deckId = state.activeDeckId) {
+      const deck = state.decks.find(item => item.id === deckId);
+      if (!deck) return;
+      const name = prompt("Deck name", deck.name);
+      if (!name?.trim()) return;
+      deck.name = name.trim();
+      saveData();
+      render();
+      showToast("Deck renamed.");
+    }
+
+    function deleteDeck(deckId = state.activeDeckId) {
+      const deck = state.decks.find(item => item.id === deckId);
+      if (!deck || !confirm(`Delete "${deck.name}" and all of its cards?`)) return;
+      state.decks = state.decks.filter(item => item.id !== deck.id);
+      if (state.activeDeckId === deck.id) {
+        state.activeDeckId = state.decks[0]?.id || null;
+      }
+      resetCardForm();
+      rebuildSession(null);
+      saveData();
+      render();
+      showToast("Deck deleted.");
+    }
+
+    function setMobileView(view) {
+      document.body.dataset.mobileView = view;
+      if (view === "import") els.importPanel.classList.add("open");
+      if (view === "add") resetCardForm();
+      syncMobileNav();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function syncMobileNav() {
+      const view = document.body.dataset.mobileView || "study";
+      navButtons.forEach(button => {
+        button.classList.toggle("active", button.dataset.mobileNav === view);
+      });
+    }
+
+    function moveCard(direction) {
+      const cards = getSessionCards();
+      const index = cards.findIndex(card => card.id === state.activeCardId);
+      const nextIndex = index + direction;
+      if (nextIndex < 0 || nextIndex >= cards.length) return;
+      state.activeCardId = cards[nextIndex].id;
+      state.isFlipped = false;
+      render();
+    }
+
+    function gradeCard(status) {
+      const deck = getActiveDeck();
+      const card = currentCard();
+      if (!deck || !card) return;
+      card.status = status;
+      saveData();
+
+      const cards = getSessionCards();
+      const index = cards.findIndex(item => item.id === card.id);
+      if (state.missedOnly && status === "known") {
+        rebuildSession(cards[index + 1]?.id || cards[index - 1]?.id || null);
+      } else if (cards[index + 1]) {
+        state.activeCardId = cards[index + 1].id;
+        state.isFlipped = false;
+      }
+
+      render();
+    }
+
+    function resetCardForm() {
+      state.editingCardId = null;
+      els.editorTitle.textContent = "Add Card";
+      els.saveCardBtn.textContent = "Add Card";
+      els.cardForm.reset();
+    }
+
+    function upsertCard(event) {
+      event.preventDefault();
+      const deck = getActiveDeck();
+      if (!deck) return;
+
+      const term = els.termInput.value.trim();
+      const definition = els.definitionInput.value.trim();
+      if (!term || !definition) {
+        showToast("Both term and definition are required.");
+        return;
+      }
+
+      if (state.editingCardId) {
+        const card = deck.cards.find(item => item.id === state.editingCardId);
+        card.term = term;
+        card.definition = definition;
+        showToast("Card updated.");
+      } else {
+        const card = { id: crypto.randomUUID(), term, definition, status: "unseen" };
+        deck.cards.push(card);
+        state.activeCardId = card.id;
+        showToast("Card added.");
+      }
+
+      resetCardForm();
+      saveData();
+      rebuildSession(state.activeCardId);
+      setMobileView("study");
+      render();
+    }
+
+    function importCards() {
+      const deck = getActiveDeck();
+      if (!deck) return;
+
+      const parsed = els.importText.value
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(Boolean)
+        .map(line => {
+          const tabIndex = line.indexOf("\t");
+          if (tabIndex === -1) return null;
+          const term = line.slice(0, tabIndex).trim();
+          const definition = line.slice(tabIndex + 1).trim();
+          return term && definition ? { id: crypto.randomUUID(), term, definition, status: "unseen" } : null;
+        })
+        .filter(Boolean);
+
+      if (!parsed.length) {
+        showToast("No valid tab-separated cards found.");
+        return;
+      }
+
+      deck.cards.push(...parsed);
+      state.activeCardId = parsed[0].id;
+      els.importText.value = "";
+      saveData();
+      rebuildSession(state.activeCardId);
+      setMobileView("study");
+      render();
+      showToast(`Imported ${parsed.length} card${parsed.length === 1 ? "" : "s"}.`);
+    }
+
+    els.deckForm.addEventListener("submit", event => {
+      event.preventDefault();
+      const name = els.deckNameInput.value.trim();
+      if (!name) return;
+      const deck = { id: crypto.randomUUID(), name, cards: [] };
+      state.decks.push(deck);
+      els.deckNameInput.value = "";
+      selectDeck(deck.id);
+      showToast("Deck created.");
+    });
+
+    els.deckList.addEventListener("click", event => {
+      const studyButton = event.target.closest("[data-study-deck]");
+      const renameButton = event.target.closest("[data-rename-deck]");
+      const deleteButton = event.target.closest("[data-delete-deck]");
+      if (studyButton) return selectDeck(studyButton.dataset.studyDeck);
+      if (renameButton) return renameDeck(renameButton.dataset.renameDeck);
+      if (deleteButton) return deleteDeck(deleteButton.dataset.deleteDeck);
+
+      const deckItem = event.target.closest("[data-deck-id]");
+      if (deckItem) {
+        if (matchMedia("(max-width: 720px)").matches) {
+          manageDeck(deckItem.dataset.deckId);
+        } else {
+          selectDeck(deckItem.dataset.deckId);
+        }
+      }
+    });
+
+    els.mobileDeckDetails.addEventListener("click", event => {
+      const studyButton = event.target.closest("[data-study-deck]");
+      const renameButton = event.target.closest("[data-rename-deck]");
+      const deleteButton = event.target.closest("[data-delete-deck]");
+      if (studyButton) return selectDeck(studyButton.dataset.studyDeck);
+      if (renameButton) return renameDeck(renameButton.dataset.renameDeck);
+      if (deleteButton) return deleteDeck(deleteButton.dataset.deleteDeck);
+    });
+
+    els.deckSearch.addEventListener("input", renderDecks);
+    els.openDecksBtn.addEventListener("click", () => els.sidebar.classList.add("open"));
+    els.closeDecksBtn.addEventListener("click", () => els.sidebar.classList.remove("open"));
+
+    els.renameDeckBtn.addEventListener("click", () => {
+      renameDeck();
+    });
+
+    els.deleteDeckBtn.addEventListener("click", () => {
+      deleteDeck();
+    });
+
+    els.toggleImportBtn.addEventListener("click", () => {
+      els.importPanel.classList.toggle("open");
+      if (matchMedia("(max-width: 720px)").matches) setMobileView("import");
+    });
+
+    els.importBtn.addEventListener("click", importCards);
+    els.clearImportBtn.addEventListener("click", () => {
+      els.importText.value = "";
+    });
+
+    els.shuffleToggle.addEventListener("change", () => {
+      state.shuffle = els.shuffleToggle.checked;
+      rebuildSession(state.activeCardId);
+      render();
+    });
+
+    els.missedToggle.addEventListener("change", () => {
+      state.missedOnly = els.missedToggle.checked;
+      rebuildSession(null);
+      render();
+    });
+
+    els.resetProgressBtn.addEventListener("click", () => {
+      const deck = getActiveDeck();
+      if (!deck) return;
+      deck.cards.forEach(card => card.status = "unseen");
+      state.missedOnly = false;
+      saveData();
+      rebuildSession(state.activeCardId);
+      render();
+      showToast("Progress reset.");
+    });
+
+    els.cardStage.addEventListener("click", event => {
+      if (!event.target.closest("#flashcard")) return;
+      state.isFlipped = !state.isFlipped;
+      render();
+    });
+
+    els.flipBtn.addEventListener("click", () => {
+      state.isFlipped = !state.isFlipped;
+      render();
+    });
+
+    els.prevBtn.addEventListener("click", () => moveCard(-1));
+    els.nextBtn.addEventListener("click", () => moveCard(1));
+    els.knowBtn.addEventListener("click", () => gradeCard("known"));
+    els.dontKnowBtn.addEventListener("click", () => gradeCard("missed"));
+
+    els.cardForm.addEventListener("submit", upsertCard);
+    els.cancelEditBtn.addEventListener("click", resetCardForm);
+
+    els.cardsList.addEventListener("click", event => {
+      const editButton = event.target.closest("[data-edit-card]");
+      const deleteButton = event.target.closest("[data-delete-card]");
+      const deck = getActiveDeck();
+      if (!deck) return;
+
+      if (editButton) {
+        const card = deck.cards.find(item => item.id === editButton.dataset.editCard);
+        if (!card) return;
+        state.editingCardId = card.id;
+        els.editorTitle.textContent = "Edit Card";
+        els.saveCardBtn.textContent = "Save Card";
+        els.termInput.value = card.term;
+        els.definitionInput.value = card.definition;
+      }
+
+      if (deleteButton) {
+        const card = deck.cards.find(item => item.id === deleteButton.dataset.deleteCard);
+        if (!card || !confirm("Delete this flashcard?")) return;
+        deck.cards = deck.cards.filter(item => item.id !== card.id);
+        if (state.editingCardId === card.id) resetCardForm();
+        saveData();
+        rebuildSession(state.activeCardId === card.id ? null : state.activeCardId);
+        render();
+        showToast("Card deleted.");
+      }
+    });
+
+    navButtons.forEach(button => {
+      button.addEventListener("click", () => setMobileView(button.dataset.mobileNav));
+    });
+
+    document.addEventListener("keydown", event => {
+      if (["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) return;
+      if (event.key === " ") {
+        event.preventDefault();
+        if (!els.flipBtn.disabled) els.flipBtn.click();
+      }
+      if (event.key === "ArrowLeft") els.prevBtn.click();
+      if (event.key === "ArrowRight") els.nextBtn.click();
+    });
+
+    loadData();
+    rebuildSession(null);
+    render();
+
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("service-worker.js").catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>

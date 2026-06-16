@@ -1,0 +1,19 @@
+{
+  "name": "Security Flashcards",
+  "short_name": "Flashcards",
+  "description": "A local-first flashcard study app for security notes.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f4f6fb",
+  "theme_color": "#2764e7",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
