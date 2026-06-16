@@ -30,6 +30,21 @@
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
+    body[data-theme="dark"] {
+      color-scheme: dark;
+      --bg: #0e1420;
+      --surface: #161f2e;
+      --surface-2: #202b3d;
+      --text: #f5f7fb;
+      --muted: #9aa8bd;
+      --line: #2c3a50;
+      --primary: #7aa2ff;
+      --primary-strong: #a8c1ff;
+      --danger: #ff8d8d;
+      --success: #74d6a5;
+      --shadow: 0 18px 45px rgba(0, 0, 0, 0.28);
+    }
+
     * {
       box-sizing: border-box;
     }
@@ -169,6 +184,16 @@
       background: #eaf8f1;
       color: var(--success);
       border: 1px solid #bce8d3;
+    }
+
+    body[data-theme="dark"] .danger-btn {
+      background: rgba(255, 141, 141, 0.12);
+      border-color: rgba(255, 141, 141, 0.35);
+    }
+
+    body[data-theme="dark"] .success-btn {
+      background: rgba(116, 214, 165, 0.12);
+      border-color: rgba(116, 214, 165, 0.35);
     }
 
     .ghost-btn {
@@ -557,6 +582,133 @@
       display: block;
     }
 
+    .settings-panel {
+      display: none;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 18px;
+    }
+
+    .settings-panel.open {
+      display: block;
+    }
+
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px;
+      background: var(--surface);
+    }
+
+    .setting-row strong {
+      display: block;
+      margin-bottom: 3px;
+    }
+
+    .setting-row span {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .toggle {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      width: 56px;
+      height: 32px;
+      flex: 0 0 auto;
+    }
+
+    .toggle input {
+      position: absolute;
+      opacity: 0;
+      inset: 0;
+    }
+
+    .toggle-track {
+      width: 100%;
+      height: 100%;
+      border-radius: 999px;
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      transition: background 0.18s ease, border 0.18s ease;
+    }
+
+    .toggle-track::after {
+      content: "";
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      top: 4px;
+      left: 4px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 2px 8px rgba(17, 24, 39, 0.18);
+      transition: transform 0.18s ease;
+    }
+
+    .toggle input:checked + .toggle-track {
+      background: var(--primary);
+      border-color: var(--primary);
+    }
+
+    .toggle input:checked + .toggle-track::after {
+      transform: translateX(24px);
+    }
+
+    .toggle input:focus-visible + .toggle-track {
+      outline: 3px solid rgba(39, 100, 231, 0.25);
+      outline-offset: 3px;
+    }
+
+    body[data-theme="dark"] .card-row,
+    body[data-theme="dark"] .field input,
+    body[data-theme="dark"] .field textarea {
+      background: var(--surface);
+    }
+
+    body[data-theme="dark"] .card-face {
+      background: linear-gradient(135deg, #182233 0%, #111827 100%);
+    }
+
+    body[data-theme="dark"] .card-face.definition {
+      background: linear-gradient(135deg, #162238 0%, #10251d 100%);
+    }
+
+    body[data-theme="dark"] .sidebar {
+      background: #0b111c;
+    }
+
+    body[data-theme="dark"] .deck-item.active {
+      background: rgba(122, 162, 255, 0.16);
+      border-color: rgba(122, 162, 255, 0.55);
+      color: var(--text);
+    }
+
+    body[data-theme="dark"] .deck-rename-btn {
+      background: var(--surface-2);
+    }
+
+    body[data-theme="dark"] .deck-delete-btn {
+      background: rgba(255, 141, 141, 0.12);
+      border-color: rgba(255, 141, 141, 0.35);
+    }
+
+    body[data-theme="dark"] .deck-study-btn {
+      color: #0b111c;
+    }
+
+    body[data-theme="dark"] .toast {
+      background: #f5f7fb;
+      color: #111827;
+    }
+
     .hint {
       color: var(--muted);
       font-size: 0.9rem;
@@ -668,7 +820,7 @@
 
     @media (max-width: 720px) {
       body {
-        background: #f4f6fb;
+        background: var(--bg);
       }
 
       .app {
@@ -680,7 +832,7 @@
       .sidebar {
         display: none;
         min-height: calc(100dvh - 76px - env(safe-area-inset-bottom));
-        background: #f4f6fb;
+        background: var(--bg);
         color: var(--text);
         padding: calc(14px + env(safe-area-inset-top)) 18px 18px;
       }
@@ -700,7 +852,7 @@
       .sidebar input {
         min-height: 52px;
         border-color: var(--line);
-        background: #fff;
+        background: var(--surface);
         color: var(--text);
         font-size: 1rem;
       }
@@ -711,7 +863,7 @@
 
       .deck-item {
         min-height: 74px;
-        background: #fff;
+        background: var(--surface);
         color: var(--text);
         border-color: var(--line);
         box-shadow: 0 8px 22px rgba(17, 24, 39, 0.05);
@@ -759,7 +911,7 @@
 
       .mobile-deck-details {
         display: block;
-        background: #fff;
+        background: var(--surface);
         border: 1px solid var(--line);
         border-radius: 16px;
         padding: 16px;
@@ -868,19 +1020,30 @@
 
       body[data-mobile-view="study"] .editor-panel,
       body[data-mobile-view="study"] .import-panel,
+      body[data-mobile-view="study"] .settings-panel,
       body[data-mobile-view="add"] .study-panel,
       body[data-mobile-view="add"] .import-panel,
+      body[data-mobile-view="add"] .settings-panel,
       body[data-mobile-view="import"] .study-panel,
-      body[data-mobile-view="import"] .editor-panel {
+      body[data-mobile-view="import"] .editor-panel,
+      body[data-mobile-view="import"] .settings-panel,
+      body[data-mobile-view="settings"] .study-panel,
+      body[data-mobile-view="settings"] .editor-panel,
+      body[data-mobile-view="settings"] .import-panel {
         display: none;
       }
 
       body[data-mobile-view="add"] .stats,
-      body[data-mobile-view="import"] .stats {
+      body[data-mobile-view="import"] .stats,
+      body[data-mobile-view="settings"] .stats {
         display: none;
       }
 
       body[data-mobile-view="import"] .import-panel {
+        display: block;
+      }
+
+      body[data-mobile-view="settings"] .settings-panel {
         display: block;
       }
 
@@ -908,7 +1071,7 @@
       .switch {
         min-height: 42px;
         justify-content: center;
-        background: #fff;
+        background: var(--surface);
         border: 1px solid var(--line);
         border-radius: var(--radius);
         color: var(--text);
@@ -998,7 +1161,7 @@
       .field input {
         min-height: 52px;
         font-size: 1rem;
-        background: #fff;
+        background: var(--surface);
       }
 
       .field textarea {
@@ -1021,7 +1184,7 @@
         bottom: 0;
         z-index: 30;
         display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: repeat(5, minmax(0, 1fr));
         gap: 4px;
         padding: 6px 10px calc(6px + env(safe-area-inset-bottom));
         background: rgba(255, 255, 255, 0.94);
@@ -1040,7 +1203,7 @@
         align-items: center;
         justify-content: center;
         gap: 3px;
-        font-size: 0.78rem;
+        font-size: 0.7rem;
       }
 
       .bottom-nav button span:first-child {
@@ -1132,6 +1295,7 @@
         <div class="actions">
           <button class="secondary-btn" id="renameDeckBtn">Rename</button>
           <button class="secondary-btn" id="toggleImportBtn">Import</button>
+          <button class="secondary-btn" id="settingsBtn">Settings</button>
           <button class="danger-btn" id="deleteDeckBtn">Delete Deck</button>
         </div>
       </section>
@@ -1156,6 +1320,22 @@
           <button class="primary-btn" id="importBtn">Import Cards</button>
         </div>
         <p class="hint">Blank lines are ignored. Lines without a tab are skipped.</p>
+      </section>
+
+      <section class="settings-panel" id="settingsPanel">
+        <div class="panel-header">
+          <h3>Settings</h3>
+        </div>
+        <div class="setting-row">
+          <div>
+            <strong>Dark Mode</strong>
+            <span>Use a darker theme for studying.</span>
+          </div>
+          <label class="toggle" aria-label="Toggle dark mode">
+            <input type="checkbox" id="darkModeToggle">
+            <span class="toggle-track"></span>
+          </label>
+        </div>
       </section>
 
       <section class="study-layout">
@@ -1218,6 +1398,7 @@
     <button type="button" class="active" data-mobile-nav="study"><span>◫</span><span>Study</span></button>
     <button type="button" data-mobile-nav="add"><span>＋</span><span>Add</span></button>
     <button type="button" data-mobile-nav="import"><span>⇣</span><span>Import</span></button>
+    <button type="button" data-mobile-nav="settings"><span>⚙</span><span>Settings</span></button>
   </nav>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -1258,6 +1439,7 @@
       isFlipped: false,
       shuffle: false,
       missedOnly: false,
+      darkMode: false,
       sessionIds: []
     };
 
@@ -1275,7 +1457,10 @@
       renameDeckBtn: document.getElementById("renameDeckBtn"),
       deleteDeckBtn: document.getElementById("deleteDeckBtn"),
       toggleImportBtn: document.getElementById("toggleImportBtn"),
+      settingsBtn: document.getElementById("settingsBtn"),
       importPanel: document.getElementById("importPanel"),
+      settingsPanel: document.getElementById("settingsPanel"),
+      darkModeToggle: document.getElementById("darkModeToggle"),
       importText: document.getElementById("importText"),
       importBtn: document.getElementById("importBtn"),
       clearImportBtn: document.getElementById("clearImportBtn"),
@@ -1311,6 +1496,7 @@
       if (!saved) {
         state.decks = [sampleDeck];
         state.activeDeckId = sampleDeck.id;
+        applyTheme();
         saveData();
         return;
       }
@@ -1319,17 +1505,26 @@
         const parsed = JSON.parse(saved);
         state.decks = Array.isArray(parsed.decks) ? parsed.decks : [sampleDeck];
         state.activeDeckId = parsed.activeDeckId || state.decks[0]?.id || null;
+        state.darkMode = Boolean(parsed.darkMode);
       } catch {
         state.decks = [sampleDeck];
         state.activeDeckId = sampleDeck.id;
       }
+      applyTheme();
     }
 
     function saveData() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         decks: state.decks,
-        activeDeckId: state.activeDeckId
+        activeDeckId: state.activeDeckId,
+        darkMode: state.darkMode
       }));
+    }
+
+    function applyTheme() {
+      document.body.dataset.theme = state.darkMode ? "dark" : "light";
+      document.querySelector('meta[name="theme-color"]').setAttribute("content", state.darkMode ? "#0e1420" : "#2764e7");
+      if (els.darkModeToggle) els.darkModeToggle.checked = state.darkMode;
     }
 
     function getActiveDeck() {
@@ -1393,6 +1588,11 @@
       renderCardsList(deck);
       syncControls(deck);
       syncMobileNav();
+      syncSettings();
+    }
+
+    function syncSettings() {
+      els.darkModeToggle.checked = state.darkMode;
     }
 
     function renderDecks() {
@@ -1591,6 +1791,7 @@
     function setMobileView(view) {
       document.body.dataset.mobileView = view;
       if (view === "import") els.importPanel.classList.add("open");
+      if (view === "settings") els.settingsPanel.classList.add("open");
       if (view === "add") resetCardForm();
       syncMobileNav();
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -1755,6 +1956,18 @@
     els.toggleImportBtn.addEventListener("click", () => {
       els.importPanel.classList.toggle("open");
       if (matchMedia("(max-width: 720px)").matches) setMobileView("import");
+    });
+
+    els.settingsBtn.addEventListener("click", () => {
+      els.settingsPanel.classList.toggle("open");
+      if (matchMedia("(max-width: 720px)").matches) setMobileView("settings");
+    });
+
+    els.darkModeToggle.addEventListener("change", () => {
+      state.darkMode = els.darkModeToggle.checked;
+      applyTheme();
+      saveData();
+      showToast(state.darkMode ? "Dark mode on." : "Dark mode off.");
     });
 
     els.importBtn.addEventListener("click", importCards);
