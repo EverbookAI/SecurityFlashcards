@@ -273,6 +273,10 @@
       gap: 8px;
     }
 
+    #stackControls[hidden] {
+      display: none;
+    }
+
     .mobile-deck-details {
       display: none;
     }
@@ -343,7 +347,8 @@
 
     .study-panel,
     .editor-panel,
-    .import-panel {
+    .import-panel,
+    .stack-panel {
       background: var(--surface);
       border: 1px solid var(--line);
       border-radius: var(--radius);
@@ -486,7 +491,8 @@
     }
 
     .editor-panel,
-    .import-panel {
+    .import-panel,
+    .stack-panel {
       padding: 18px;
     }
 
@@ -517,7 +523,8 @@
     }
 
     .field input,
-    .field textarea {
+    .field textarea,
+    .field select {
       width: 100%;
       border: 1px solid var(--line);
       border-radius: var(--radius);
@@ -534,6 +541,7 @@
 
     .field input:focus,
     .field textarea:focus,
+    .field select:focus,
     .sidebar input:focus {
       border-color: var(--primary);
       box-shadow: 0 0 0 3px rgba(39, 100, 231, 0.15);
@@ -598,6 +606,14 @@
     }
 
     .settings-panel.open {
+      display: block;
+    }
+
+    .stack-panel {
+      display: none;
+    }
+
+    .stack-panel.open {
       display: block;
     }
 
@@ -675,7 +691,8 @@
 
     body[data-theme="dark"] .card-row,
     body[data-theme="dark"] .field input,
-    body[data-theme="dark"] .field textarea {
+    body[data-theme="dark"] .field textarea,
+    body[data-theme="dark"] .field select {
       background: var(--surface);
     }
 
@@ -1013,7 +1030,8 @@
 
       .study-panel,
       .editor-panel,
-      .import-panel {
+      .import-panel,
+      .stack-panel {
         border: 0;
         box-shadow: none;
         background: transparent;
@@ -1028,21 +1046,30 @@
 
       body[data-mobile-view="study"] .editor-panel,
       body[data-mobile-view="study"] .import-panel,
+      body[data-mobile-view="study"] .stack-panel,
       body[data-mobile-view="study"] .settings-panel,
       body[data-mobile-view="add"] .study-panel,
       body[data-mobile-view="add"] .import-panel,
+      body[data-mobile-view="add"] .stack-panel,
       body[data-mobile-view="add"] .settings-panel,
       body[data-mobile-view="import"] .study-panel,
       body[data-mobile-view="import"] .editor-panel,
       body[data-mobile-view="import"] .settings-panel,
+      body[data-mobile-view="import"] .stack-panel,
+      body[data-mobile-view="stacks"] .study-panel,
+      body[data-mobile-view="stacks"] .editor-panel,
+      body[data-mobile-view="stacks"] .import-panel,
+      body[data-mobile-view="stacks"] .settings-panel,
       body[data-mobile-view="settings"] .study-panel,
       body[data-mobile-view="settings"] .editor-panel,
-      body[data-mobile-view="settings"] .import-panel {
+      body[data-mobile-view="settings"] .import-panel,
+      body[data-mobile-view="settings"] .stack-panel {
         display: none;
       }
 
       body[data-mobile-view="add"] .stats,
       body[data-mobile-view="import"] .stats,
+      body[data-mobile-view="stacks"] .stats,
       body[data-mobile-view="settings"] .stats {
         display: none;
       }
@@ -1052,6 +1079,10 @@
       }
 
       body[data-mobile-view="settings"] .settings-panel {
+        display: block;
+      }
+
+      body[data-mobile-view="stacks"] .stack-panel {
         display: block;
       }
 
@@ -1189,7 +1220,8 @@
       }
 
       .field textarea,
-      .field input {
+      .field input,
+      .field select {
         min-height: 52px;
         font-size: 1rem;
         background: var(--surface);
@@ -1332,6 +1364,7 @@
         </div>
         <div class="actions">
           <button class="secondary-btn" id="renameDeckBtn">Rename</button>
+          <button class="secondary-btn" id="studyStacksBtn">Study in Stacks</button>
           <button class="secondary-btn" id="toggleImportBtn">Import</button>
           <button class="secondary-btn" id="settingsBtn">Settings</button>
           <button class="danger-btn" id="deleteDeckBtn">Delete Deck</button>
@@ -1376,6 +1409,26 @@
         </div>
       </section>
 
+      <section class="stack-panel" id="stackPanel">
+        <div class="panel-header">
+          <h3>Study in Stacks</h3>
+        </div>
+        <div class="field">
+          <label for="stackSizeSelect">Cards per stack</label>
+          <select id="stackSizeSelect">
+            <option value="10">10 cards per stack</option>
+            <option value="20">20 cards per stack</option>
+            <option value="25">25 cards per stack</option>
+            <option value="50">50 cards per stack</option>
+          </select>
+        </div>
+        <label class="switch"><input type="checkbox" id="stackShuffleToggle"> Shuffle before dividing</label>
+        <div class="form-actions">
+          <button class="primary-btn" id="startStacksBtn" type="button">Start Stack Session</button>
+          <button class="secondary-btn" id="cancelStacksBtn" type="button">Cancel</button>
+        </div>
+      </section>
+
       <section class="study-layout">
         <div class="study-panel">
           <div class="toolbar">
@@ -1393,6 +1446,13 @@
           </div>
           <div class="progress-track" aria-hidden="true">
             <div class="progress-fill" id="progressFill"></div>
+          </div>
+
+          <div class="form-actions" id="stackControls" hidden>
+            <button class="secondary-btn" id="previousStackBtn" type="button">Previous Stack</button>
+            <button class="secondary-btn" id="nextStackBtn" type="button">Next Stack</button>
+            <button class="secondary-btn" id="restartStacksBtn" type="button">Restart Stacks</button>
+            <button class="secondary-btn" id="exitStacksBtn" type="button">Exit Stack Mode</button>
           </div>
 
           <div class="card-stage" id="cardStage"></div>
@@ -1480,7 +1540,8 @@
       missedOnly: false,
       reverseCards: false,
       darkMode: false,
-      sessionIds: []
+      sessionIds: [],
+      stackSessions: {}
     };
 
     const els = {
@@ -1498,11 +1559,17 @@
       activeDeckTitle: document.getElementById("activeDeckTitle"),
       activeDeckSubtitle: document.getElementById("activeDeckSubtitle"),
       renameDeckBtn: document.getElementById("renameDeckBtn"),
+      studyStacksBtn: document.getElementById("studyStacksBtn"),
       deleteDeckBtn: document.getElementById("deleteDeckBtn"),
       toggleImportBtn: document.getElementById("toggleImportBtn"),
       settingsBtn: document.getElementById("settingsBtn"),
       importPanel: document.getElementById("importPanel"),
       settingsPanel: document.getElementById("settingsPanel"),
+      stackPanel: document.getElementById("stackPanel"),
+      stackSizeSelect: document.getElementById("stackSizeSelect"),
+      stackShuffleToggle: document.getElementById("stackShuffleToggle"),
+      startStacksBtn: document.getElementById("startStacksBtn"),
+      cancelStacksBtn: document.getElementById("cancelStacksBtn"),
       darkModeToggle: document.getElementById("darkModeToggle"),
       importText: document.getElementById("importText"),
       importBtn: document.getElementById("importBtn"),
@@ -1518,6 +1585,11 @@
       cardPosition: document.getElementById("cardPosition"),
       studyModeLabel: document.getElementById("studyModeLabel"),
       progressFill: document.getElementById("progressFill"),
+      stackControls: document.getElementById("stackControls"),
+      previousStackBtn: document.getElementById("previousStackBtn"),
+      nextStackBtn: document.getElementById("nextStackBtn"),
+      restartStacksBtn: document.getElementById("restartStacksBtn"),
+      exitStacksBtn: document.getElementById("exitStacksBtn"),
       cardStage: document.getElementById("cardStage"),
       prevBtn: document.getElementById("prevBtn"),
       flipBtn: document.getElementById("flipBtn"),
@@ -1556,6 +1628,7 @@
         state.activeCardId = typeof parsed.activeCardId === "string" ? parsed.activeCardId : null;
         state.isFlipped = Boolean(parsed.isFlipped);
         state.sessionIds = Array.isArray(parsed.sessionIds) ? parsed.sessionIds.filter(id => typeof id === "string") : [];
+        state.stackSessions = parsed.stackSessions && typeof parsed.stackSessions === "object" ? parsed.stackSessions : {};
       } catch {
         state.decks = [sampleDeck];
         state.activeDeckId = sampleDeck.id;
@@ -1573,7 +1646,8 @@
         reverseCards: state.reverseCards,
         activeCardId: state.activeCardId,
         isFlipped: state.isFlipped,
-        sessionIds: state.sessionIds
+        sessionIds: state.sessionIds,
+        stackSessions: state.stackSessions
       }));
     }
 
@@ -1598,6 +1672,136 @@
     function currentCard() {
       const cards = getSessionCards();
       return cards.find(card => card.id === state.activeCardId) || cards[0] || null;
+    }
+
+    function getStackSession(deckId = state.activeDeckId) {
+      const deck = state.decks.find(item => item.id === deckId);
+      const session = deck ? state.stackSessions[deckId] : null;
+      if (!session || ![10, 20, 25, 50].includes(session.size) || !Array.isArray(session.orderedIds)) return null;
+      const cardIds = new Set(deck.cards.map(card => card.id));
+      session.orderedIds = session.orderedIds.filter((id, index, ids) => cardIds.has(id) && ids.indexOf(id) === index);
+      session.results = session.results && typeof session.results === "object" ? session.results : {};
+      session.stackIndex = Math.max(0, Math.min(Number(session.stackIndex) || 0, Math.max(0, Math.ceil(session.orderedIds.length / session.size) - 1)));
+      session.active = Boolean(session.active);
+      return session;
+    }
+
+    function isStackMode() {
+      return Boolean(getStackSession()?.active);
+    }
+
+    function getStackIds(session = getStackSession()) {
+      if (!session) return [];
+      const start = session.stackIndex * session.size;
+      return session.orderedIds.slice(start, start + session.size);
+    }
+
+    function getStackResult(session = getStackSession()) {
+      if (!session) return null;
+      const key = String(session.stackIndex);
+      const result = session.results[key] || { answers: {}, reviewRemainingIds: [], phase: "study" };
+      result.answers = result.answers && typeof result.answers === "object" ? result.answers : {};
+      result.reviewRemainingIds = Array.isArray(result.reviewRemainingIds) ? result.reviewRemainingIds : [];
+      result.phase = ["study", "summary", "review", "complete"].includes(result.phase) ? result.phase : "study";
+      session.results[key] = result;
+      return result;
+    }
+
+    function activateStackSession(keepCardId = state.activeCardId) {
+      const session = getStackSession();
+      const result = getStackResult(session);
+      if (!session || !result) return;
+      const stackIds = getStackIds(session);
+      const stackIdSet = new Set(stackIds);
+      result.reviewRemainingIds = result.reviewRemainingIds.filter(id => stackIdSet.has(id));
+      Object.keys(result.answers).forEach(id => {
+        if (!stackIdSet.has(id) || !["correct", "missed"].includes(result.answers[id])) delete result.answers[id];
+      });
+
+      if (result.phase === "review") {
+        state.sessionIds = [...result.reviewRemainingIds];
+      } else if (["summary", "complete"].includes(result.phase)) {
+        state.sessionIds = [];
+      } else {
+        state.sessionIds = stackIds;
+      }
+      const firstUnanswered = stackIds.find(id => !result.answers[id]);
+      const preferredCardId = state.sessionIds.includes(keepCardId) ? keepCardId : session.currentCardId;
+      state.activeCardId = state.sessionIds.includes(preferredCardId)
+        ? preferredCardId
+        : (result.phase === "study" ? firstUnanswered : null) || state.sessionIds[0] || null;
+      session.currentCardId = state.activeCardId;
+      state.isFlipped = false;
+    }
+
+    function startStackSession() {
+      const deck = getActiveDeck();
+      if (!deck || !deck.cards.length) return;
+      const size = Number(els.stackSizeSelect.value);
+      const ids = deck.cards.map(card => card.id);
+      state.stackSessions[deck.id] = {
+        active: true,
+        size,
+        shuffled: els.stackShuffleToggle.checked,
+        orderedIds: els.stackShuffleToggle.checked ? shuffleArray(ids) : ids,
+        stackIndex: 0,
+        currentCardId: null,
+        results: {}
+      };
+      els.stackPanel.classList.remove("open");
+      activateStackSession(null);
+      saveData();
+      if (matchMedia("(max-width: 720px)").matches) setMobileView("study");
+      render();
+    }
+
+    function openStackSetup(deckId = state.activeDeckId) {
+      if (deckId && deckId !== state.activeDeckId) selectDeck(deckId);
+      els.stackPanel.classList.add("open");
+      if (matchMedia("(max-width: 720px)").matches) setMobileView("stacks");
+    }
+
+    function changeStack(direction) {
+      const session = getStackSession();
+      if (!session) return;
+      const total = Math.ceil(session.orderedIds.length / session.size);
+      const nextIndex = session.stackIndex + direction;
+      if (nextIndex < 0 || nextIndex >= total) return;
+      session.stackIndex = nextIndex;
+      activateStackSession(null);
+      saveData();
+      render();
+    }
+
+    function restartStackSession() {
+      const session = getStackSession();
+      if (!session || !confirm("Restart this stack session from Stack 1?")) return;
+      session.stackIndex = 0;
+      session.results = {};
+      session.active = true;
+      activateStackSession(null);
+      saveData();
+      render();
+      showToast("Stack session restarted.");
+    }
+
+    function exitStackMode() {
+      const session = getStackSession();
+      if (session) session.active = false;
+      state.missedOnly = false;
+      rebuildSession(null, state.shuffle);
+      saveData();
+      render();
+    }
+
+    function reviewStackMissed() {
+      const session = getStackSession();
+      const result = getStackResult(session);
+      if (!session || !result || !result.reviewRemainingIds.length) return;
+      result.phase = "review";
+      activateStackSession(null);
+      saveData();
+      render();
     }
 
     function rebuildSession(keepCardId = state.activeCardId, reshuffle = false) {
@@ -1697,6 +1901,7 @@
         <p>${deck.cards.length} card${deck.cards.length === 1 ? "" : "s"}</p>
         <div class="mobile-detail-actions">
           <button class="deck-study-btn" data-study-deck="${deck.id}" type="button">Study Deck</button>
+          <button class="deck-rename-btn" data-study-stacks="${deck.id}" type="button">Study in Stacks</button>
           <button class="deck-rename-btn" data-rename-deck="${deck.id}" type="button">Rename Deck</button>
           <button class="deck-delete-btn" data-delete-deck="${deck.id}" type="button">Delete Deck</button>
         </div>
@@ -1723,13 +1928,21 @@
     function renderStudy(deck) {
       const cards = getSessionCards();
       const card = currentCard();
+      const stackSession = isStackMode() ? getStackSession() : null;
+      const stackResult = stackSession ? getStackResult(stackSession) : null;
+      const totalStacks = stackSession ? Math.ceil(stackSession.orderedIds.length / stackSession.size) : 0;
       const index = card ? cards.findIndex(item => item.id === card.id) : -1;
       const position = index >= 0 ? index + 1 : 0;
-      const progress = cards.length ? (position / cards.length) * 100 : 0;
+      const progress = stackResult && ["summary", "complete"].includes(stackResult.phase)
+        ? 100
+        : cards.length ? (position / cards.length) * 100 : 0;
 
       els.cardPosition.textContent = `${position} / ${cards.length}`;
-      els.studyModeLabel.textContent = state.missedOnly ? "Missed cards" : "All cards";
+      els.studyModeLabel.textContent = stackSession
+        ? `Stack ${stackSession.stackIndex + 1} of ${totalStacks}${stackResult.phase === "review" ? " · Review missed" : ""}`
+        : state.missedOnly ? "Missed cards" : "All cards";
       els.progressFill.style.width = `${progress}%`;
+      els.stackControls.hidden = !stackSession;
 
       if (!deck) {
         els.cardStage.innerHTML = `<div class="card-empty">Create a deck to begin studying.</div>`;
@@ -1741,7 +1954,29 @@
         return;
       }
 
-      if (state.missedOnly && !cards.length) {
+      if (stackSession && ["summary", "complete"].includes(stackResult.phase)) {
+        const answers = Object.values(stackResult.answers);
+        const correct = answers.filter(answer => answer === "correct").length;
+        const missed = answers.filter(answer => answer === "missed").length;
+        const percentage = answers.length ? Math.round((correct / answers.length) * 100) : 0;
+        const finalStack = stackSession.stackIndex >= totalStacks - 1;
+        els.cardPosition.textContent = `${answers.length} / ${getStackIds(stackSession).length}`;
+        els.cardStage.innerHTML = `
+          <div class="card-empty">
+            <div>
+              <strong>${stackResult.phase === "complete" ? "Missed cards review complete." : `Stack ${stackSession.stackIndex + 1} complete`}</strong>
+              <p>Correct: ${correct}<br>Missed: ${missed}<br>Percentage correct: ${percentage}%</p>
+              <div class="form-actions">
+                ${stackResult.phase === "summary" && missed ? `<button class="primary-btn" id="reviewStackMissedBtn" type="button">Review Missed Cards</button>` : ""}
+                ${!finalStack ? `<button class="secondary-btn" id="continueNextStackBtn" type="button">Continue to Next Stack</button>` : ""}
+              </div>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      if (!stackSession && state.missedOnly && !cards.length) {
         els.cardStage.innerHTML = `<div class="card-empty">No missed cards yet. Mark cards as Don't Know to review them here.</div>`;
         return;
       }
@@ -1796,10 +2031,13 @@
       const card = currentCard();
       const cards = getSessionCards();
       const index = card ? cards.findIndex(item => item.id === card.id) : -1;
+      const stackSession = isStackMode() ? getStackSession() : null;
+      const totalStacks = stackSession ? Math.ceil(stackSession.orderedIds.length / stackSession.size) : 0;
 
       [
         els.renameDeckBtn,
         els.deleteDeckBtn,
+        els.studyStacksBtn,
         els.toggleImportBtn,
         els.importBtn,
         els.clearImportBtn,
@@ -1818,16 +2056,24 @@
       els.knowBtn.disabled = !hasSessionCards;
       els.dontKnowBtn.disabled = !hasSessionCards;
       els.missedToggle.disabled = !hasDeck || !hasCards;
+      els.studyStacksBtn.disabled = !hasDeck || !hasCards;
+      els.shuffleToggle.disabled = !hasDeck || Boolean(stackSession);
+      els.missedToggle.disabled = !hasDeck || !hasCards || Boolean(stackSession);
       els.shuffleToggle.checked = state.shuffle;
       els.missedToggle.checked = state.missedOnly;
       els.reverseToggle.checked = state.reverseCards;
+      els.previousStackBtn.disabled = !stackSession || stackSession.stackIndex <= 0;
+      els.nextStackBtn.disabled = !stackSession || stackSession.stackIndex >= totalStacks - 1;
+      els.dontKnowBtn.textContent = stackSession ? "Missed" : "Don't Know";
+      els.knowBtn.textContent = stackSession ? "Correct" : "Know";
     }
 
     function selectDeck(deckId) {
       state.activeDeckId = deckId;
       state.editingCardId = null;
       resetCardForm();
-      rebuildSession(null, state.shuffle);
+      if (getStackSession()?.active) activateStackSession();
+      else rebuildSession(null, state.shuffle);
       saveData();
       setMobileView("study");
       render();
@@ -1859,6 +2105,7 @@
       const deck = state.decks.find(item => item.id === deckId);
       if (!deck || !confirm(`Delete "${deck.name}" and all of its cards?`)) return;
       state.decks = state.decks.filter(item => item.id !== deck.id);
+      delete state.stackSessions[deck.id];
       if (state.activeDeckId === deck.id) {
         state.activeDeckId = state.decks[0]?.id || null;
       }
@@ -1891,6 +2138,7 @@
       const nextIndex = index + direction;
       if (nextIndex < 0 || nextIndex >= cards.length) return;
       state.activeCardId = cards[nextIndex].id;
+      if (isStackMode()) getStackSession().currentCardId = state.activeCardId;
       state.isFlipped = false;
       saveData();
       render();
@@ -1901,6 +2149,50 @@
       const card = currentCard();
       if (!deck || !card) return;
       card.status = status;
+
+      if (isStackMode()) {
+        const session = getStackSession();
+        const result = getStackResult(session);
+        const answer = status === "known" ? "correct" : "missed";
+
+        if (result.phase === "review") {
+          const currentIndex = result.reviewRemainingIds.indexOf(card.id);
+          if (answer === "correct") {
+            result.reviewRemainingIds = result.reviewRemainingIds.filter(id => id !== card.id);
+          }
+          if (!result.reviewRemainingIds.length) {
+            result.phase = "complete";
+            state.sessionIds = [];
+            state.activeCardId = null;
+          } else {
+            state.sessionIds = [...result.reviewRemainingIds];
+            state.activeCardId = result.reviewRemainingIds[currentIndex % result.reviewRemainingIds.length];
+            state.isFlipped = false;
+          }
+        } else {
+          result.answers[card.id] = answer;
+          const stackIds = getStackIds(session);
+          const unansweredIds = stackIds.filter(id => !result.answers[id]);
+          if (!unansweredIds.length) {
+            result.reviewRemainingIds = stackIds.filter(id => result.answers[id] === "missed");
+            result.phase = "summary";
+            state.sessionIds = [];
+            state.activeCardId = null;
+          } else {
+            const currentIndex = stackIds.indexOf(card.id);
+            state.activeCardId = [...stackIds.slice(currentIndex + 1), ...stackIds.slice(0, currentIndex)]
+              .find(id => unansweredIds.includes(id));
+            state.isFlipped = false;
+          }
+        }
+
+        session.currentCardId = state.activeCardId;
+
+        saveData();
+        render();
+        return;
+      }
+
       saveData();
 
       const cards = getSessionCards();
@@ -1949,7 +2241,8 @@
 
       resetCardForm();
       saveData();
-      rebuildSession(state.activeCardId);
+      if (isStackMode()) activateStackSession(state.activeCardId);
+      else rebuildSession(state.activeCardId);
       saveData();
       setMobileView("study");
       render();
@@ -1975,7 +2268,8 @@
           missedOnly: state.missedOnly,
           reverseCards: state.reverseCards,
           isFlipped: state.isFlipped,
-          sessionIds: state.sessionIds
+          sessionIds: state.sessionIds,
+          stackSessions: state.stackSessions
         }
       };
       const url = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" }));
@@ -2013,6 +2307,20 @@
       const activeCardIds = new Set(activeDeck?.cards.map(card => card.id) || []);
       if (data.activeCardId !== null && !activeCardIds.has(data.activeCardId)) return null;
       if (!data.sessionIds.every(id => activeCardIds.has(id))) return null;
+      const stackSessions = data.stackSessions ?? {};
+      if (!stackSessions || typeof stackSessions !== "object" || Array.isArray(stackSessions)) return null;
+      for (const [deckId, session] of Object.entries(stackSessions)) {
+        const deck = data.decks.find(item => item.id === deckId);
+        if (!deck || !session || ![10, 20, 25, 50].includes(session.size) || typeof session.active !== "boolean" || typeof session.shuffled !== "boolean" || !Array.isArray(session.orderedIds) || !session.results || typeof session.results !== "object") return null;
+        const cardIds = new Set(deck.cards.map(card => card.id));
+        if (!session.orderedIds.every(id => cardIds.has(id)) || new Set(session.orderedIds).size !== session.orderedIds.length || !Number.isInteger(session.stackIndex) || session.stackIndex < 0) return null;
+        if (session.currentCardId != null && !cardIds.has(session.currentCardId)) return null;
+        for (const result of Object.values(session.results)) {
+          if (!result || !result.answers || typeof result.answers !== "object" || !Array.isArray(result.reviewRemainingIds) || !["study", "summary", "review", "complete"].includes(result.phase)) return null;
+          if (!Object.values(result.answers).every(answer => ["correct", "missed"].includes(answer)) || !result.reviewRemainingIds.every(id => cardIds.has(id))) return null;
+        }
+      }
+      data.stackSessions = stackSessions;
       return data;
     }
 
@@ -2032,6 +2340,7 @@
         state.reverseCards = data.reverseCards;
         state.isFlipped = data.isFlipped;
         state.sessionIds = data.sessionIds;
+        state.stackSessions = data.stackSessions;
         state.editingCardId = null;
         resetCardForm();
         applyTheme();
@@ -2088,7 +2397,8 @@
       state.activeCardId = parsed[0].id;
       els.importText.value = "";
       saveData();
-      rebuildSession(state.activeCardId);
+      if (isStackMode()) activateStackSession(state.activeCardId);
+      else rebuildSession(state.activeCardId);
       saveData();
       setMobileView("study");
       render();
@@ -2126,9 +2436,11 @@
 
     els.mobileDeckDetails.addEventListener("click", event => {
       const studyButton = event.target.closest("[data-study-deck]");
+      const stacksButton = event.target.closest("[data-study-stacks]");
       const renameButton = event.target.closest("[data-rename-deck]");
       const deleteButton = event.target.closest("[data-delete-deck]");
       if (studyButton) return selectDeck(studyButton.dataset.studyDeck);
+      if (stacksButton) return openStackSetup(stacksButton.dataset.studyStacks);
       if (renameButton) return renameDeck(renameButton.dataset.renameDeck);
       if (deleteButton) return deleteDeck(deleteButton.dataset.deleteDeck);
     });
@@ -2146,6 +2458,17 @@
     els.renameDeckBtn.addEventListener("click", () => {
       renameDeck();
     });
+
+    els.studyStacksBtn.addEventListener("click", () => openStackSetup());
+    els.startStacksBtn.addEventListener("click", startStackSession);
+    els.cancelStacksBtn.addEventListener("click", () => {
+      els.stackPanel.classList.remove("open");
+      if (matchMedia("(max-width: 720px)").matches) setMobileView("study");
+    });
+    els.previousStackBtn.addEventListener("click", () => changeStack(-1));
+    els.nextStackBtn.addEventListener("click", () => changeStack(1));
+    els.restartStacksBtn.addEventListener("click", restartStackSession);
+    els.exitStacksBtn.addEventListener("click", exitStackMode);
 
     els.deleteDeckBtn.addEventListener("click", () => {
       deleteDeck();
@@ -2198,6 +2521,7 @@
       const deck = getActiveDeck();
       if (!deck) return;
       deck.cards.forEach(card => card.status = "unseen");
+      delete state.stackSessions[deck.id];
       state.missedOnly = false;
       saveData();
       rebuildSession(null, state.shuffle);
@@ -2207,6 +2531,8 @@
     });
 
     els.cardStage.addEventListener("click", event => {
+      if (event.target.closest("#reviewStackMissedBtn")) return reviewStackMissed();
+      if (event.target.closest("#continueNextStackBtn")) return changeStack(1);
       if (!event.target.closest("#flashcard")) return;
       state.isFlipped = !state.isFlipped;
       saveData();
@@ -2249,7 +2575,8 @@
         deck.cards = deck.cards.filter(item => item.id !== card.id);
         if (state.editingCardId === card.id) resetCardForm();
         saveData();
-        rebuildSession(state.activeCardId === card.id ? null : state.activeCardId);
+        if (isStackMode()) activateStackSession(state.activeCardId === card.id ? null : state.activeCardId);
+        else rebuildSession(state.activeCardId === card.id ? null : state.activeCardId);
         saveData();
         render();
         showToast("Card deleted.");
@@ -2272,7 +2599,8 @@
 
     loadData();
     const savedFlipState = state.isFlipped;
-    rebuildSession(state.activeCardId);
+    if (getStackSession()?.active) activateStackSession(state.activeCardId);
+    else rebuildSession(state.activeCardId);
     state.isFlipped = savedFlipState;
     render();
 
