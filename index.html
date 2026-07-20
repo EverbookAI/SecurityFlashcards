@@ -2065,11 +2065,13 @@
       const totalStacks = stackSession ? Math.ceil(stackSession.orderedIds.length / stackSession.size) : 0;
       const index = card ? cards.findIndex(item => item.id === card.id) : -1;
       const position = index >= 0 ? index + 1 : 0;
-      const progress = stackResult && ["summary", "complete"].includes(stackResult.phase)
+      const progress = review && review.phase === "round"
+        ? (review.index + 1) / review.orderIds.length * 100
+        : stackResult && ["summary", "complete"].includes(stackResult.phase)
         ? 100
         : cards.length ? (position / cards.length) * 100 : 0;
 
-      els.cardPosition.textContent = review && review.phase === "round" ? `Card ${review.index + 1} of ${review.orderIds.length}` : `${position} / ${cards.length}`;
+      els.cardPosition.textContent = review && review.phase === "round" ? `${review.index + 1} / ${review.orderIds.length}` : `${position} / ${cards.length}`;
       els.studyModeLabel.textContent = review
         ? `Missed Review · Round ${review.round}`
         : stackSession
@@ -2104,7 +2106,7 @@
         return;
       }
 
-      if (stackSession && ["summary", "complete"].includes(stackResult.phase)) {
+      if (!review && stackSession && ["summary", "complete"].includes(stackResult.phase)) {
         const answers = Object.values(stackResult.answers);
         const correct = answers.filter(answer => answer === "correct").length;
         const missed = answers.filter(answer => answer === "missed").length;
