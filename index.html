@@ -1678,8 +1678,7 @@
       const deck = state.decks.find(item => item.id === deckId);
       const session = deck ? state.stackSessions[deckId] : null;
       if (!session || ![10, 20, 25, 50].includes(session.size) || !Array.isArray(session.orderedIds)) return null;
-      const cardIds = new Set(deck.cards.map(card => card.id));
-      session.orderedIds = session.orderedIds.filter((id, index, ids) => cardIds.has(id) && ids.indexOf(id) === index);
+      session.orderedIds = session.orderedIds.filter((id, index, ids) => typeof id === "string" && ids.indexOf(id) === index);
       session.results = session.results && typeof session.results === "object" ? session.results : {};
       session.stackIndex = Math.max(0, Math.min(Number(session.stackIndex) || 0, Math.max(0, Math.ceil(session.orderedIds.length / session.size) - 1)));
       session.active = Boolean(session.active);
@@ -1693,7 +1692,8 @@
     function getStackIds(session = getStackSession()) {
       if (!session) return [];
       const start = session.stackIndex * session.size;
-      return session.orderedIds.slice(start, start + session.size);
+      const cardIds = new Set(getActiveDeck()?.cards.map(card => card.id) || []);
+      return session.orderedIds.slice(start, start + session.size).filter(id => cardIds.has(id));
     }
 
     function getStackResult(session = getStackSession()) {
@@ -1717,6 +1717,7 @@
       Object.keys(result.answers).forEach(id => {
         if (!stackIdSet.has(id) || !["correct", "missed"].includes(result.answers[id])) delete result.answers[id];
       });
+      if (!stackIds.length) result.phase = "summary";
 
       if (result.phase === "review") {
         state.sessionIds = [...result.reviewRemainingIds];
@@ -1737,6 +1738,8 @@
     function startStackSession() {
       const deck = getActiveDeck();
       if (!deck || !deck.cards.length) return;
+      const existingSession = getStackSession(deck.id);
+      if (existingSession && !confirm("Starting a new stack session will discard the saved stack order and progress for this deck. Continue?")) return;
       const size = Number(els.stackSizeSelect.value);
       const ids = deck.cards.map(card => card.id);
       state.stackSessions[deck.id] = {
@@ -1757,6 +1760,15 @@
 
     function openStackSetup(deckId = state.activeDeckId) {
       if (deckId && deckId !== state.activeDeckId) selectDeck(deckId);
+      const session = getStackSession();
+      if (session && confirm(`Resume the saved session at Stack ${session.stackIndex + 1}? Select Cancel to configure a new session.`)) {
+        session.active = true;
+        activateStackSession(session.currentCardId);
+        saveData();
+        if (matchMedia("(max-width: 720px)").matches) setMobileView("study");
+        render();
+        return;
+      }
       els.stackPanel.classList.add("open");
       if (matchMedia("(max-width: 720px)").matches) setMobileView("stacks");
     }
@@ -1767,6 +1779,10 @@
       const total = Math.ceil(session.orderedIds.length / session.size);
       const nextIndex = session.stackIndex + direction;
       if (nextIndex < 0 || nextIndex >= total) return;
+      if (direction > 0 && !["summary", "complete"].includes(getStackResult(session).phase)) {
+        showToast("Complete the current stack before continuing.");
+        return;
+      }
       session.stackIndex = nextIndex;
       activateStackSession(null);
       saveData();
@@ -1776,18 +1792,53 @@
     function restartStackSession() {
       const session = getStackSession();
       if (!session || !confirm("Restart this stack session from Stack 1?")) return;
+      resetStackSession(session);
+      showToast("Stack session restarted.");
+    }
+
+    function resetStackSession(session, reshuffle = false) {
+      if (reshuffle) {
+        session.orderedIds = shuffleArray(getActiveDeck().cards.map(card => card.id));
+        session.shuffled = true;
+      }
       session.stackIndex = 0;
+      session.currentCardId = null;
       session.results = {};
       session.active = true;
       activateStackSession(null);
       saveData();
       render();
-      showToast("Stack session restarted.");
+    }
+
+    function studyFullDeckAgain() {
+      const session = getStackSession();
+      if (session) resetStackSession(session);
+    }
+
+    function reshuffleAndRestart() {
+      const session = getStackSession();
+      if (session) resetStackSession(session, true);
     }
 
     function exitStackMode() {
       const session = getStackSession();
-      if (session) session.active = false;
+      if (session) {
+        const resumeLater = confirm("Keep this stack session so you can resume it later? Select Cancel to discard its progress.");
+        if (resumeLater) {
+          session.active = false;
+        } else {
+          if (!confirm("Discard the saved stack order and all stack progress for this deck?")) return;
+          delete state.stackSessions[state.activeDeckId];
+        }
+      }
+      state.missedOnly = false;
+      rebuildSession(null, state.shuffle);
+      saveData();
+      render();
+    }
+
+    function finishStackSession() {
+      delete state.stackSessions[state.activeDeckId];
       state.missedOnly = false;
       rebuildSession(null, state.shuffle);
       saveData();
@@ -1960,15 +2011,28 @@
         const missed = answers.filter(answer => answer === "missed").length;
         const percentage = answers.length ? Math.round((correct / answers.length) * 100) : 0;
         const finalStack = stackSession.stackIndex >= totalStacks - 1;
+        const fullDeckComplete = finalStack && Array.from({ length: totalStacks }, (_, stackIndex) => {
+          const result = stackSession.results[String(stackIndex)];
+          const currentCardIds = new Set(deck.cards.map(card => card.id));
+          const stackLength = stackSession.orderedIds
+            .slice(stackIndex * stackSession.size, (stackIndex + 1) * stackSession.size)
+            .filter(id => currentCardIds.has(id)).length;
+          return result && Object.keys(result.answers || {}).length === stackLength;
+        }).every(Boolean);
         els.cardPosition.textContent = `${answers.length} / ${getStackIds(stackSession).length}`;
         els.cardStage.innerHTML = `
           <div class="card-empty">
             <div>
-              <strong>${stackResult.phase === "complete" ? "Missed cards review complete." : `Stack ${stackSession.stackIndex + 1} complete`}</strong>
+              <strong>${stackResult.phase === "complete" ? `Missed cards review complete.${fullDeckComplete ? " Full deck reviewed." : ""}` : fullDeckComplete ? "Full deck reviewed." : `Stack ${stackSession.stackIndex + 1} complete`}</strong>
               <p>Correct: ${correct}<br>Missed: ${missed}<br>Percentage correct: ${percentage}%</p>
               <div class="form-actions">
                 ${stackResult.phase === "summary" && missed ? `<button class="primary-btn" id="reviewStackMissedBtn" type="button">Review Missed Cards</button>` : ""}
                 ${!finalStack ? `<button class="secondary-btn" id="continueNextStackBtn" type="button">Continue to Next Stack</button>` : ""}
+                ${fullDeckComplete ? `
+                  <button class="secondary-btn" id="studyFullDeckAgainBtn" type="button">Study Full Deck Again</button>
+                  <button class="secondary-btn" id="reshuffleRestartBtn" type="button">Reshuffle and Restart</button>
+                  <button class="secondary-btn" id="finishStackSessionBtn" type="button">Exit Session</button>
+                ` : ""}
               </div>
             </div>
           </div>
@@ -2063,7 +2127,9 @@
       els.missedToggle.checked = state.missedOnly;
       els.reverseToggle.checked = state.reverseCards;
       els.previousStackBtn.disabled = !stackSession || stackSession.stackIndex <= 0;
-      els.nextStackBtn.disabled = !stackSession || stackSession.stackIndex >= totalStacks - 1;
+      els.nextStackBtn.disabled = !stackSession
+        || stackSession.stackIndex >= totalStacks - 1
+        || !["summary", "complete"].includes(getStackResult(stackSession).phase);
       els.dontKnowBtn.textContent = stackSession ? "Missed" : "Don't Know";
       els.knowBtn.textContent = stackSession ? "Correct" : "Know";
     }
@@ -2236,7 +2302,7 @@
         const card = { id: crypto.randomUUID(), term, definition, status: "unseen" };
         deck.cards.push(card);
         state.activeCardId = card.id;
-        showToast("Card added.");
+        showToast(isStackMode() ? "Card added. Active stack order was preserved." : "Card added.");
       }
 
       resetCardForm();
@@ -2313,7 +2379,7 @@
         const deck = data.decks.find(item => item.id === deckId);
         if (!deck || !session || ![10, 20, 25, 50].includes(session.size) || typeof session.active !== "boolean" || typeof session.shuffled !== "boolean" || !Array.isArray(session.orderedIds) || !session.results || typeof session.results !== "object") return null;
         const cardIds = new Set(deck.cards.map(card => card.id));
-        if (!session.orderedIds.every(id => cardIds.has(id)) || new Set(session.orderedIds).size !== session.orderedIds.length || !Number.isInteger(session.stackIndex) || session.stackIndex < 0) return null;
+        if (!session.orderedIds.every(id => typeof id === "string") || new Set(session.orderedIds).size !== session.orderedIds.length || !Number.isInteger(session.stackIndex) || session.stackIndex < 0) return null;
         if (session.currentCardId != null && !cardIds.has(session.currentCardId)) return null;
         for (const result of Object.values(session.results)) {
           if (!result || !result.answers || typeof result.answers !== "object" || !Array.isArray(result.reviewRemainingIds) || !["study", "summary", "review", "complete"].includes(result.phase)) return null;
@@ -2402,7 +2468,7 @@
       saveData();
       setMobileView("study");
       render();
-      showToast(`Imported ${parsed.length} card${parsed.length === 1 ? "" : "s"}.`);
+      showToast(`Imported ${parsed.length} card${parsed.length === 1 ? "" : "s"}.${isStackMode() ? " Active stack order was preserved." : ""}`);
     }
 
     els.deckForm.addEventListener("submit", event => {
@@ -2533,6 +2599,9 @@
     els.cardStage.addEventListener("click", event => {
       if (event.target.closest("#reviewStackMissedBtn")) return reviewStackMissed();
       if (event.target.closest("#continueNextStackBtn")) return changeStack(1);
+      if (event.target.closest("#studyFullDeckAgainBtn")) return studyFullDeckAgain();
+      if (event.target.closest("#reshuffleRestartBtn")) return reshuffleAndRestart();
+      if (event.target.closest("#finishStackSessionBtn")) return finishStackSession();
       if (!event.target.closest("#flashcard")) return;
       state.isFlipped = !state.isFlipped;
       saveData();
@@ -2571,7 +2640,10 @@
 
       if (deleteButton) {
         const card = deck.cards.find(item => item.id === deleteButton.dataset.deleteCard);
-        if (!card || !confirm("Delete this flashcard?")) return;
+        const message = isStackMode()
+          ? "Delete this flashcard? It will be removed from the active stack snapshot without reshuffling the remaining cards."
+          : "Delete this flashcard?";
+        if (!card || !confirm(message)) return;
         deck.cards = deck.cards.filter(item => item.id !== card.id);
         if (state.editingCardId === card.id) resetCardForm();
         saveData();
