@@ -267,6 +267,12 @@
       display: none;
     }
 
+    .backup-actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
     .mobile-deck-details {
       display: none;
     }
@@ -1310,6 +1316,11 @@
 
       <div class="deck-list" id="deckList" aria-label="Deck list"></div>
       <section class="mobile-deck-details" id="mobileDeckDetails" aria-live="polite"></section>
+      <div class="backup-actions" aria-label="Backup actions">
+        <button class="secondary-btn" id="exportBackupBtn" type="button">Export Backup</button>
+        <button class="secondary-btn" id="importBackupBtn" type="button">Import Backup</button>
+        <input id="backupFileInput" type="file" accept="application/json,.json" hidden>
+      </div>
     </aside>
 
     <main class="main">
@@ -1371,6 +1382,7 @@
             <div class="toggle-row">
               <label class="switch"><input type="checkbox" id="shuffleToggle"> Shuffle</label>
               <label class="switch"><input type="checkbox" id="missedToggle"> Review missed</label>
+              <label class="switch"><input type="checkbox" id="reverseToggle"> Reverse Cards</label>
             </div>
             <button class="ghost-btn" id="resetProgressBtn">Reset Progress</button>
           </div>
@@ -1466,6 +1478,7 @@
       isFlipped: false,
       shuffle: false,
       missedOnly: false,
+      reverseCards: false,
       darkMode: false,
       sessionIds: []
     };
@@ -1479,6 +1492,9 @@
       deckSearch: document.getElementById("deckSearch"),
       deckList: document.getElementById("deckList"),
       mobileDeckDetails: document.getElementById("mobileDeckDetails"),
+      exportBackupBtn: document.getElementById("exportBackupBtn"),
+      importBackupBtn: document.getElementById("importBackupBtn"),
+      backupFileInput: document.getElementById("backupFileInput"),
       activeDeckTitle: document.getElementById("activeDeckTitle"),
       activeDeckSubtitle: document.getElementById("activeDeckSubtitle"),
       renameDeckBtn: document.getElementById("renameDeckBtn"),
@@ -1497,6 +1513,7 @@
       remainingCount: document.getElementById("remainingCount"),
       shuffleToggle: document.getElementById("shuffleToggle"),
       missedToggle: document.getElementById("missedToggle"),
+      reverseToggle: document.getElementById("reverseToggle"),
       resetProgressBtn: document.getElementById("resetProgressBtn"),
       cardPosition: document.getElementById("cardPosition"),
       studyModeLabel: document.getElementById("studyModeLabel"),
@@ -1533,6 +1550,12 @@
         state.decks = Array.isArray(parsed.decks) ? parsed.decks : [sampleDeck];
         state.activeDeckId = parsed.activeDeckId || state.decks[0]?.id || null;
         state.darkMode = Boolean(parsed.darkMode);
+        state.shuffle = Boolean(parsed.shuffle);
+        state.missedOnly = Boolean(parsed.missedOnly);
+        state.reverseCards = Boolean(parsed.reverseCards);
+        state.activeCardId = typeof parsed.activeCardId === "string" ? parsed.activeCardId : null;
+        state.isFlipped = Boolean(parsed.isFlipped);
+        state.sessionIds = Array.isArray(parsed.sessionIds) ? parsed.sessionIds.filter(id => typeof id === "string") : [];
       } catch {
         state.decks = [sampleDeck];
         state.activeDeckId = sampleDeck.id;
@@ -1544,7 +1567,13 @@
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         decks: state.decks,
         activeDeckId: state.activeDeckId,
-        darkMode: state.darkMode
+        darkMode: state.darkMode,
+        shuffle: state.shuffle,
+        missedOnly: state.missedOnly,
+        reverseCards: state.reverseCards,
+        activeCardId: state.activeCardId,
+        isFlipped: state.isFlipped,
+        sessionIds: state.sessionIds
       }));
     }
 
@@ -1719,17 +1748,23 @@
 
       const termSizeClass = textSizeClass(card.term);
       const definitionSizeClass = textSizeClass(card.definition);
+      const frontLabel = state.reverseCards ? "Definition" : "Term";
+      const frontText = state.reverseCards ? card.definition : card.term;
+      const frontSizeClass = state.reverseCards ? definitionSizeClass : termSizeClass;
+      const backLabel = state.reverseCards ? "Term" : "Definition";
+      const backText = state.reverseCards ? card.term : card.definition;
+      const backSizeClass = state.reverseCards ? termSizeClass : definitionSizeClass;
 
       els.cardStage.innerHTML = `
         <button class="flashcard ${state.isFlipped ? "flipped" : ""}" id="flashcard" aria-label="Flip card">
           <span class="flashcard-inner">
             <span class="card-face">
-              <span class="face-label">Term</span>
-              <span class="face-text ${termSizeClass}">${escapeHtml(card.term)}</span>
+              <span class="face-label">${frontLabel}</span>
+              <span class="face-text ${frontSizeClass}">${escapeHtml(frontText)}</span>
             </span>
             <span class="card-face definition">
-              <span class="face-label">Definition</span>
-              <span class="face-text ${definitionSizeClass}">${escapeHtml(card.definition)}</span>
+              <span class="face-label">${backLabel}</span>
+              <span class="face-text ${backSizeClass}">${escapeHtml(backText)}</span>
             </span>
           </span>
         </button>
@@ -1773,6 +1808,7 @@
         els.saveCardBtn,
         els.shuffleToggle,
         els.missedToggle,
+        els.reverseToggle,
         els.resetProgressBtn
       ].forEach(el => el.disabled = !hasDeck);
 
@@ -1784,6 +1820,7 @@
       els.missedToggle.disabled = !hasDeck || !hasCards;
       els.shuffleToggle.checked = state.shuffle;
       els.missedToggle.checked = state.missedOnly;
+      els.reverseToggle.checked = state.reverseCards;
     }
 
     function selectDeck(deckId) {
@@ -1855,6 +1892,7 @@
       if (nextIndex < 0 || nextIndex >= cards.length) return;
       state.activeCardId = cards[nextIndex].id;
       state.isFlipped = false;
+      saveData();
       render();
     }
 
@@ -1874,6 +1912,7 @@
         state.isFlipped = false;
       }
 
+      saveData();
       render();
     }
 
@@ -1911,8 +1950,99 @@
       resetCardForm();
       saveData();
       rebuildSession(state.activeCardId);
+      saveData();
       setMobileView("study");
       render();
+    }
+
+    function exportBackup() {
+      const now = new Date();
+      const date = [
+        now.getFullYear(),
+        String(now.getMonth() + 1).padStart(2, "0"),
+        String(now.getDate()).padStart(2, "0")
+      ].join("-");
+      const backup = {
+        format: "SecurityFlashcardsBackup",
+        version: 1,
+        exportedAt: now.toISOString(),
+        data: {
+          decks: state.decks,
+          activeDeckId: state.activeDeckId,
+          activeCardId: state.activeCardId,
+          darkMode: state.darkMode,
+          shuffle: state.shuffle,
+          missedOnly: state.missedOnly,
+          reverseCards: state.reverseCards,
+          isFlipped: state.isFlipped,
+          sessionIds: state.sessionIds
+        }
+      };
+      const url = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `SecurityFlashcards_Backup_${date}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+      showToast("Backup exported.");
+    }
+
+    function validateBackup(backup) {
+      if (!backup || backup.format !== "SecurityFlashcardsBackup" || backup.version !== 1) return null;
+      const data = backup.data;
+      if (!data || !Array.isArray(data.decks) || !Array.isArray(data.sessionIds)) return null;
+      if (![data.activeDeckId, data.activeCardId].every(id => id === null || typeof id === "string")) return null;
+      if (![data.darkMode, data.shuffle, data.missedOnly, data.reverseCards, data.isFlipped].every(value => typeof value === "boolean")) return null;
+      if (!data.sessionIds.every(id => typeof id === "string") || new Set(data.sessionIds).size !== data.sessionIds.length) return null;
+
+      const deckIds = new Set();
+      for (const deck of data.decks) {
+        if (!deck || typeof deck.id !== "string" || typeof deck.name !== "string" || !deck.name.trim() || !Array.isArray(deck.cards) || deckIds.has(deck.id)) return null;
+        deckIds.add(deck.id);
+        const cardIds = new Set();
+        for (const card of deck.cards) {
+          if (!card || typeof card.id !== "string" || typeof card.term !== "string" || typeof card.definition !== "string" || !["unseen", "known", "missed"].includes(card.status) || cardIds.has(card.id)) return null;
+          cardIds.add(card.id);
+        }
+      }
+
+      if (data.activeDeckId !== null && !deckIds.has(data.activeDeckId)) return null;
+      const activeDeck = data.decks.find(deck => deck.id === data.activeDeckId) || null;
+      const activeCardIds = new Set(activeDeck?.cards.map(card => card.id) || []);
+      if (data.activeCardId !== null && !activeCardIds.has(data.activeCardId)) return null;
+      if (!data.sessionIds.every(id => activeCardIds.has(id))) return null;
+      return data;
+    }
+
+    async function importBackup(file) {
+      try {
+        const backup = JSON.parse(await file.text());
+        const data = validateBackup(backup);
+        if (!data) throw new Error("Invalid backup");
+        if (!confirm("Import this backup and replace all existing decks, progress, and settings?")) return;
+
+        state.decks = data.decks;
+        state.activeDeckId = data.activeDeckId;
+        state.activeCardId = data.activeCardId;
+        state.darkMode = data.darkMode;
+        state.shuffle = data.shuffle;
+        state.missedOnly = data.missedOnly;
+        state.reverseCards = data.reverseCards;
+        state.isFlipped = data.isFlipped;
+        state.sessionIds = data.sessionIds;
+        state.editingCardId = null;
+        resetCardForm();
+        applyTheme();
+        saveData();
+        render();
+        showToast("Backup imported.");
+      } catch {
+        showToast("Invalid backup file. No data was changed.");
+      } finally {
+        els.backupFileInput.value = "";
+      }
     }
 
     function importCards() {
@@ -1959,6 +2089,7 @@
       els.importText.value = "";
       saveData();
       rebuildSession(state.activeCardId);
+      saveData();
       setMobileView("study");
       render();
       showToast(`Imported ${parsed.length} card${parsed.length === 1 ? "" : "s"}.`);
@@ -2005,6 +2136,12 @@
     els.deckSearch.addEventListener("input", renderDecks);
     els.openDecksBtn.addEventListener("click", () => els.sidebar.classList.add("open"));
     els.closeDecksBtn.addEventListener("click", () => els.sidebar.classList.remove("open"));
+    els.exportBackupBtn.addEventListener("click", exportBackup);
+    els.importBackupBtn.addEventListener("click", () => els.backupFileInput.click());
+    els.backupFileInput.addEventListener("change", () => {
+      const file = els.backupFileInput.files[0];
+      if (file) importBackup(file);
+    });
 
     els.renameDeckBtn.addEventListener("click", () => {
       renameDeck();
@@ -2039,12 +2176,21 @@
     els.shuffleToggle.addEventListener("change", () => {
       state.shuffle = els.shuffleToggle.checked;
       rebuildSession(null, state.shuffle);
+      saveData();
       render();
     });
 
     els.missedToggle.addEventListener("change", () => {
       state.missedOnly = els.missedToggle.checked;
       rebuildSession(null, state.shuffle);
+      saveData();
+      render();
+    });
+
+    els.reverseToggle.addEventListener("change", () => {
+      state.reverseCards = els.reverseToggle.checked;
+      state.isFlipped = false;
+      saveData();
       render();
     });
 
@@ -2055,6 +2201,7 @@
       state.missedOnly = false;
       saveData();
       rebuildSession(null, state.shuffle);
+      saveData();
       render();
       showToast("Progress reset.");
     });
@@ -2062,11 +2209,13 @@
     els.cardStage.addEventListener("click", event => {
       if (!event.target.closest("#flashcard")) return;
       state.isFlipped = !state.isFlipped;
+      saveData();
       render();
     });
 
     els.flipBtn.addEventListener("click", () => {
       state.isFlipped = !state.isFlipped;
+      saveData();
       render();
     });
 
@@ -2101,6 +2250,7 @@
         if (state.editingCardId === card.id) resetCardForm();
         saveData();
         rebuildSession(state.activeCardId === card.id ? null : state.activeCardId);
+        saveData();
         render();
         showToast("Card deleted.");
       }
@@ -2121,7 +2271,9 @@
     });
 
     loadData();
-    rebuildSession(null);
+    const savedFlipState = state.isFlipped;
+    rebuildSession(state.activeCardId);
+    state.isFlipped = savedFlipState;
     render();
 
     if ("serviceWorker" in navigator) {
