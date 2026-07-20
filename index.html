@@ -1340,7 +1340,7 @@
           <button class="ghost-btn" id="clearImportBtn">Clear</button>
         </div>
         <div class="field">
-          <label for="importText">Paste term[TAB]definition, one card per line</label>
+          <label for="importText">Paste term[TAB]definition; continuation lines are included in the definition</label>
           <textarea id="importText" placeholder="Port scanning&#9;A technique used to identify open ports on a host."></textarea>
         </div>
         <div class="form-actions">
@@ -1571,11 +1571,17 @@
       return cards.find(card => card.id === state.activeCardId) || cards[0] || null;
     }
 
-    function rebuildSession(keepCardId = state.activeCardId) {
+    function rebuildSession(keepCardId = state.activeCardId, reshuffle = false) {
       const deck = getActiveDeck();
       const source = deck ? deck.cards.filter(card => !state.missedOnly || card.status === "missed") : [];
       const ids = source.map(card => card.id);
-      state.sessionIds = state.shuffle ? shuffleArray(ids) : ids;
+      if (state.shuffle) {
+        const existingIds = state.sessionIds.filter(id => ids.includes(id));
+        const newIds = ids.filter(id => !existingIds.includes(id));
+        state.sessionIds = reshuffle ? shuffleArray(ids) : [...existingIds, ...newIds];
+      } else {
+        state.sessionIds = ids;
+      }
       state.activeCardId = state.sessionIds.includes(keepCardId) ? keepCardId : state.sessionIds[0] || null;
       state.isFlipped = false;
     }
@@ -1784,7 +1790,7 @@
       state.activeDeckId = deckId;
       state.editingCardId = null;
       resetCardForm();
-      rebuildSession(null);
+      rebuildSession(null, state.shuffle);
       saveData();
       setMobileView("study");
       render();
@@ -1795,7 +1801,7 @@
       state.activeDeckId = deckId;
       state.editingCardId = null;
       resetCardForm();
-      rebuildSession(null);
+      rebuildSession(null, state.shuffle);
       saveData();
       setMobileView("decks");
       render();
@@ -1820,7 +1826,7 @@
         state.activeDeckId = state.decks[0]?.id || null;
       }
       resetCardForm();
-      rebuildSession(null);
+      rebuildSession(null, state.shuffle);
       saveData();
       render();
       showToast("Deck deleted.");
@@ -1913,18 +1919,35 @@
       const deck = getActiveDeck();
       if (!deck) return;
 
-      const parsed = els.importText.value
-        .split(/\r?\n/)
-        .map(line => line.trim())
-        .filter(Boolean)
-        .map(line => {
-          const tabIndex = line.indexOf("\t");
-          if (tabIndex === -1) return null;
-          const term = line.slice(0, tabIndex).trim();
-          const definition = line.slice(tabIndex + 1).trim();
-          return term && definition ? { id: crypto.randomUUID(), term, definition, status: "unseen" } : null;
-        })
-        .filter(Boolean);
+      const parsed = [];
+      let currentCard = null;
+
+      function finishImportedCard() {
+        if (!currentCard) return;
+        const definition = currentCard.definitionLines.join("\n");
+        if (currentCard.term && definition.trim()) {
+          parsed.push({
+            id: crypto.randomUUID(),
+            term: currentCard.term,
+            definition,
+            status: "unseen"
+          });
+        }
+      }
+
+      els.importText.value.split(/\r?\n/).forEach(line => {
+        const tabIndex = line.indexOf("\t");
+        if (tabIndex !== -1) {
+          finishImportedCard();
+          currentCard = {
+            term: line.slice(0, tabIndex).trim(),
+            definitionLines: [line.slice(tabIndex + 1)]
+          };
+        } else if (currentCard) {
+          currentCard.definitionLines.push(line);
+        }
+      });
+      finishImportedCard();
 
       if (!parsed.length) {
         showToast("No valid tab-separated cards found.");
@@ -2015,13 +2038,13 @@
 
     els.shuffleToggle.addEventListener("change", () => {
       state.shuffle = els.shuffleToggle.checked;
-      rebuildSession(state.activeCardId);
+      rebuildSession(null, state.shuffle);
       render();
     });
 
     els.missedToggle.addEventListener("change", () => {
       state.missedOnly = els.missedToggle.checked;
-      rebuildSession(null);
+      rebuildSession(null, state.shuffle);
       render();
     });
 
@@ -2031,7 +2054,7 @@
       deck.cards.forEach(card => card.status = "unseen");
       state.missedOnly = false;
       saveData();
-      rebuildSession(state.activeCardId);
+      rebuildSession(null, state.shuffle);
       render();
       showToast("Progress reset.");
     });
