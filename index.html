@@ -1541,7 +1541,8 @@
       reverseCards: false,
       darkMode: false,
       sessionIds: [],
-      stackSessions: {}
+      stackSessions: {},
+      reviewSession: null
     };
 
     const els = {
@@ -1629,6 +1630,7 @@
         state.isFlipped = Boolean(parsed.isFlipped);
         state.sessionIds = Array.isArray(parsed.sessionIds) ? parsed.sessionIds.filter(id => typeof id === "string") : [];
         state.stackSessions = parsed.stackSessions && typeof parsed.stackSessions === "object" ? parsed.stackSessions : {};
+        state.reviewSession = parsed.reviewSession && typeof parsed.reviewSession === "object" ? parsed.reviewSession : null;
       } catch {
         state.decks = [sampleDeck];
         state.activeDeckId = sampleDeck.id;
@@ -1647,7 +1649,8 @@
         activeCardId: state.activeCardId,
         isFlipped: state.isFlipped,
         sessionIds: state.sessionIds,
-        stackSessions: state.stackSessions
+        stackSessions: state.stackSessions,
+        reviewSession: state.reviewSession
       }));
     }
 
@@ -1687,6 +1690,86 @@
 
     function isStackMode() {
       return Boolean(getStackSession()?.active);
+    }
+
+    function getReviewSession() {
+      const review = state.reviewSession;
+      const deck = getActiveDeck();
+      if (!review || !deck || review.deckId !== deck.id) return null;
+      const validIds = new Set(deck.cards.map(card => card.id));
+      review.orderIds = [...new Set(Array.isArray(review.orderIds) ? review.orderIds : [])].filter(id => validIds.has(id));
+      review.nextMissedIds = [...new Set(Array.isArray(review.nextMissedIds) ? review.nextMissedIds : [])].filter(id => validIds.has(id));
+      review.round = Math.max(1, Number(review.round) || 1);
+      review.index = Math.max(0, Math.min(Number(review.index) || 0, review.orderIds.length));
+      review.phase = ["round", "summary", "mastered"].includes(review.phase) ? review.phase : "round";
+      if (review.phase === "round" && !review.orderIds.length) review.phase = review.nextMissedIds.length ? "summary" : "mastered";
+      return review;
+    }
+
+    function activateReviewSession() {
+      const review = getReviewSession();
+      if (!review) return false;
+      if (review.phase === "round") {
+        state.sessionIds = [...review.orderIds];
+        state.activeCardId = review.orderIds[review.index] || null;
+      } else {
+        state.sessionIds = [];
+        state.activeCardId = null;
+      }
+      return true;
+    }
+
+    function startMissedReview(ids, stackIndex = null) {
+      const deck = getActiveDeck();
+      const uniqueIds = [...new Set(ids)].filter(id => deck?.cards.some(card => card.id === id));
+      if (!deck || !uniqueIds.length) return;
+      state.reviewSession = {
+        deckId: deck.id,
+        stackIndex,
+        round: 1,
+        orderIds: shuffleArray(uniqueIds),
+        index: 0,
+        nextMissedIds: [],
+        phase: "round"
+      };
+      state.sessionIds = [...state.reviewSession.orderIds];
+      state.activeCardId = state.sessionIds[0];
+      state.isFlipped = false;
+      saveData();
+      render();
+    }
+
+    function startNextReviewRound() {
+      const review = getReviewSession();
+      if (!review || !review.nextMissedIds.length) return;
+      review.round += 1;
+      review.orderIds = shuffleArray([...new Set(review.nextMissedIds)]);
+      review.nextMissedIds = [];
+      review.index = 0;
+      review.phase = "round";
+      state.sessionIds = [...review.orderIds];
+      state.activeCardId = review.orderIds[0] || null;
+      state.isFlipped = false;
+      saveData();
+      render();
+    }
+
+    function returnFromReview() {
+      const review = getReviewSession();
+      const wasStackReview = review?.stackIndex != null;
+      const mastered = review?.phase === "mastered";
+      state.reviewSession = null;
+      state.missedOnly = false;
+      if (wasStackReview && getStackSession()) {
+        const result = getStackResult();
+        if (mastered) result.phase = "complete";
+        else result.phase = "summary";
+        activateStackSession(null);
+      } else {
+        rebuildSession(null, state.shuffle);
+      }
+      saveData();
+      render();
     }
 
     function getStackIds(session = getStackSession()) {
@@ -1849,10 +1932,7 @@
       const session = getStackSession();
       const result = getStackResult(session);
       if (!session || !result || !result.reviewRemainingIds.length) return;
-      result.phase = "review";
-      activateStackSession(null);
-      saveData();
-      render();
+      startMissedReview(result.reviewRemainingIds, session.stackIndex);
     }
 
     function rebuildSession(keepCardId = state.activeCardId, reshuffle = false) {
@@ -1979,6 +2059,7 @@
     function renderStudy(deck) {
       const cards = getSessionCards();
       const card = currentCard();
+      const review = getReviewSession();
       const stackSession = isStackMode() ? getStackSession() : null;
       const stackResult = stackSession ? getStackResult(stackSession) : null;
       const totalStacks = stackSession ? Math.ceil(stackSession.orderedIds.length / stackSession.size) : 0;
@@ -1988,8 +2069,10 @@
         ? 100
         : cards.length ? (position / cards.length) * 100 : 0;
 
-      els.cardPosition.textContent = `${position} / ${cards.length}`;
-      els.studyModeLabel.textContent = stackSession
+      els.cardPosition.textContent = review && review.phase === "round" ? `Card ${review.index + 1} of ${review.orderIds.length}` : `${position} / ${cards.length}`;
+      els.studyModeLabel.textContent = review
+        ? `Missed Review · Round ${review.round}`
+        : stackSession
         ? `Stack ${stackSession.stackIndex + 1} of ${totalStacks}${stackResult.phase === "review" ? " · Review missed" : ""}`
         : state.missedOnly ? "Missed cards" : "All cards";
       els.progressFill.style.width = `${progress}%`;
@@ -2002,6 +2085,22 @@
 
       if (!deck.cards.length) {
         els.cardStage.innerHTML = `<div class="card-empty">Add or import cards to start this deck.</div>`;
+        return;
+      }
+
+      if (review && review.phase !== "round") {
+        const remaining = review.nextMissedIds.length;
+        els.cardPosition.textContent = "";
+        els.progressFill.style.width = "100%";
+        els.cardStage.innerHTML = `
+          <div class="card-empty"><div>
+            <strong>${remaining ? `${remaining} card${remaining === 1 ? "" : "s"} still missed` : "All missed cards mastered!"}</strong>
+            <div class="form-actions">
+              ${remaining ? `<button class="primary-btn" id="reviewMissedAgainBtn" type="button">Review Missed Again</button>` : ""}
+              <button class="secondary-btn" id="returnFromReviewBtn" type="button">Return to Stack</button>
+              ${!remaining && review.stackIndex != null && stackSession && stackSession.stackIndex < totalStacks - 1 ? `<button class="secondary-btn" id="reviewNextStackBtn" type="button">Next Stack</button>` : ""}
+            </div>
+          </div></div>`;
         return;
       }
 
@@ -2096,6 +2195,7 @@
       const cards = getSessionCards();
       const index = card ? cards.findIndex(item => item.id === card.id) : -1;
       const stackSession = isStackMode() ? getStackSession() : null;
+      const review = getReviewSession();
       const totalStacks = stackSession ? Math.ceil(stackSession.orderedIds.length / stackSession.size) : 0;
 
       [
@@ -2114,31 +2214,35 @@
         els.resetProgressBtn
       ].forEach(el => el.disabled = !hasDeck);
 
-      els.prevBtn.disabled = !hasSessionCards || index <= 0;
-      els.nextBtn.disabled = !hasSessionCards || index >= cards.length - 1;
-      els.flipBtn.disabled = !hasSessionCards;
-      els.knowBtn.disabled = !hasSessionCards;
-      els.dontKnowBtn.disabled = !hasSessionCards;
-      els.missedToggle.disabled = !hasDeck || !hasCards;
+      els.prevBtn.disabled = Boolean(review) || !hasSessionCards || index <= 0;
+      els.nextBtn.disabled = Boolean(review) || !hasSessionCards || index >= cards.length - 1;
+      els.flipBtn.disabled = !hasSessionCards || Boolean(review && review.phase !== "round");
+      els.knowBtn.disabled = !hasSessionCards || Boolean(review && review.phase !== "round");
+      els.dontKnowBtn.disabled = !hasSessionCards || Boolean(review && review.phase !== "round");
+      const missedInDeck = deck?.cards.some(card => card.status === "missed");
+      els.missedToggle.disabled = !hasDeck || !hasCards || (!review && !missedInDeck);
       els.studyStacksBtn.disabled = !hasDeck || !hasCards;
       els.shuffleToggle.disabled = !hasDeck || Boolean(stackSession);
-      els.missedToggle.disabled = !hasDeck || !hasCards || Boolean(stackSession);
+      els.missedToggle.disabled = Boolean(stackSession) || !hasDeck || !hasCards || (!review && !missedInDeck);
       els.shuffleToggle.checked = state.shuffle;
-      els.missedToggle.checked = state.missedOnly;
+      els.missedToggle.checked = Boolean(review);
       els.reverseToggle.checked = state.reverseCards;
-      els.previousStackBtn.disabled = !stackSession || stackSession.stackIndex <= 0;
-      els.nextStackBtn.disabled = !stackSession
+      els.previousStackBtn.disabled = Boolean(review) || !stackSession || stackSession.stackIndex <= 0;
+      els.nextStackBtn.disabled = Boolean(review) || !stackSession
         || stackSession.stackIndex >= totalStacks - 1
         || !["summary", "complete"].includes(getStackResult(stackSession).phase);
-      els.dontKnowBtn.textContent = stackSession ? "Missed" : "Don't Know";
-      els.knowBtn.textContent = stackSession ? "Correct" : "Know";
+      els.restartStacksBtn.disabled = Boolean(review) || !stackSession;
+      els.exitStacksBtn.disabled = Boolean(review) || !stackSession;
+      els.dontKnowBtn.textContent = review || stackSession ? "Missed" : "Don't Know";
+      els.knowBtn.textContent = review || stackSession ? "Known" : "Know";
     }
 
     function selectDeck(deckId) {
       state.activeDeckId = deckId;
       state.editingCardId = null;
       resetCardForm();
-      if (getStackSession()?.active) activateStackSession();
+      if (getReviewSession()) activateReviewSession();
+      else if (getStackSession()?.active) activateStackSession();
       else rebuildSession(null, state.shuffle);
       saveData();
       setMobileView("study");
@@ -2172,6 +2276,7 @@
       if (!deck || !confirm(`Delete "${deck.name}" and all of its cards?`)) return;
       state.decks = state.decks.filter(item => item.id !== deck.id);
       delete state.stackSessions[deck.id];
+      if (state.reviewSession?.deckId === deck.id) state.reviewSession = null;
       if (state.activeDeckId === deck.id) {
         state.activeDeckId = state.decks[0]?.id || null;
       }
@@ -2215,6 +2320,26 @@
       const card = currentCard();
       if (!deck || !card) return;
       card.status = status;
+
+      const review = getReviewSession();
+      if (review && review.phase === "round") {
+        if (status === "missed" && !review.nextMissedIds.includes(card.id)) review.nextMissedIds.push(card.id);
+        review.index += 1;
+        if (review.index >= review.orderIds.length) {
+          review.phase = review.nextMissedIds.length ? "summary" : "mastered";
+          if (review.stackIndex != null && getStackSession()?.stackIndex === review.stackIndex) {
+            getStackResult().reviewRemainingIds = [...review.nextMissedIds];
+          }
+          state.sessionIds = [];
+          state.activeCardId = null;
+        } else {
+          state.activeCardId = review.orderIds[review.index];
+          state.isFlipped = false;
+        }
+        saveData();
+        render();
+        return;
+      }
 
       if (isStackMode()) {
         const session = getStackSession();
@@ -2335,7 +2460,8 @@
           reverseCards: state.reverseCards,
           isFlipped: state.isFlipped,
           sessionIds: state.sessionIds,
-          stackSessions: state.stackSessions
+          stackSessions: state.stackSessions,
+          reviewSession: state.reviewSession
         }
       };
       const url = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" }));
@@ -2407,6 +2533,7 @@
         state.isFlipped = data.isFlipped;
         state.sessionIds = data.sessionIds;
         state.stackSessions = data.stackSessions;
+        state.reviewSession = data.reviewSession && typeof data.reviewSession === "object" ? data.reviewSession : null;
         state.editingCardId = null;
         resetCardForm();
         applyTheme();
@@ -2570,10 +2697,12 @@
     });
 
     els.missedToggle.addEventListener("change", () => {
-      state.missedOnly = els.missedToggle.checked;
-      rebuildSession(null, state.shuffle);
-      saveData();
-      render();
+      if (els.missedToggle.checked) {
+        const deck = getActiveDeck();
+        startMissedReview(deck ? deck.cards.filter(card => card.status === "missed").map(card => card.id) : []);
+      } else {
+        returnFromReview();
+      }
     });
 
     els.reverseToggle.addEventListener("change", () => {
@@ -2588,6 +2717,7 @@
       if (!deck) return;
       deck.cards.forEach(card => card.status = "unseen");
       delete state.stackSessions[deck.id];
+      if (state.reviewSession?.deckId === deck.id) state.reviewSession = null;
       state.missedOnly = false;
       saveData();
       rebuildSession(null, state.shuffle);
@@ -2597,6 +2727,9 @@
     });
 
     els.cardStage.addEventListener("click", event => {
+      if (event.target.closest("#reviewMissedAgainBtn")) return startNextReviewRound();
+      if (event.target.closest("#returnFromReviewBtn")) return returnFromReview();
+      if (event.target.closest("#reviewNextStackBtn")) { returnFromReview(); return changeStack(1); }
       if (event.target.closest("#reviewStackMissedBtn")) return reviewStackMissed();
       if (event.target.closest("#continueNextStackBtn")) return changeStack(1);
       if (event.target.closest("#studyFullDeckAgainBtn")) return studyFullDeckAgain();
@@ -2647,7 +2780,8 @@
         deck.cards = deck.cards.filter(item => item.id !== card.id);
         if (state.editingCardId === card.id) resetCardForm();
         saveData();
-        if (isStackMode()) activateStackSession(state.activeCardId === card.id ? null : state.activeCardId);
+        if (getReviewSession()) activateReviewSession();
+        else if (isStackMode()) activateStackSession(state.activeCardId === card.id ? null : state.activeCardId);
         else rebuildSession(state.activeCardId === card.id ? null : state.activeCardId);
         saveData();
         render();
@@ -2671,7 +2805,8 @@
 
     loadData();
     const savedFlipState = state.isFlipped;
-    if (getStackSession()?.active) activateStackSession(state.activeCardId);
+    if (getReviewSession()) activateReviewSession();
+    else if (getStackSession()?.active) activateStackSession(state.activeCardId);
     else rebuildSession(state.activeCardId);
     state.isFlipped = savedFlipState;
     render();
