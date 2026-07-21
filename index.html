@@ -1709,6 +1709,10 @@
     function activateReviewSession() {
       const review = getReviewSession();
       if (!review) return false;
+      const stackSession = review.stackIndex != null ? getStackSession(review.deckId) : null;
+      if (stackSession && stackSession.stackIndex === review.stackIndex) {
+        getStackResult(stackSession).phase = "review";
+      }
       if (review.phase === "round") {
         state.sessionIds = [...review.orderIds];
         state.activeCardId = review.orderIds[review.index] || null;
@@ -1723,16 +1727,23 @@
       const deck = getActiveDeck();
       const uniqueIds = [...new Set(ids)].filter(id => deck?.cards.some(card => card.id === id));
       if (!deck || !uniqueIds.length) return;
+      const orderIds = shuffleArray(uniqueIds);
+      const stackSession = stackIndex != null ? getStackSession(deck.id) : null;
+      if (stackSession && stackSession.stackIndex === stackIndex) {
+        const stackResult = getStackResult(stackSession);
+        stackResult.phase = "review";
+        stackResult.reviewRemainingIds = [...uniqueIds];
+      }
       state.reviewSession = {
         deckId: deck.id,
         stackIndex,
         round: 1,
-        orderIds: shuffleArray(uniqueIds),
+        orderIds,
         index: 0,
         nextMissedIds: [],
         phase: "round"
       };
-      state.sessionIds = [...state.reviewSession.orderIds];
+      state.sessionIds = [...orderIds];
       state.activeCardId = state.sessionIds[0];
       state.isFlipped = false;
       saveData();
@@ -2071,7 +2082,7 @@
         ? 100
         : cards.length ? (position / cards.length) * 100 : 0;
 
-      els.cardPosition.textContent = review && review.phase === "round" ? `${review.index + 1} / ${review.orderIds.length}` : `${position} / ${cards.length}`;
+      els.cardPosition.textContent = review && review.phase === "round" ? `Card ${review.index + 1} of ${review.orderIds.length}` : `${position} / ${cards.length}`;
       els.studyModeLabel.textContent = review
         ? `Missed Review · Round ${review.round}`
         : stackSession
@@ -2539,6 +2550,7 @@
         state.editingCardId = null;
         resetCardForm();
         applyTheme();
+        if (getReviewSession()) activateReviewSession();
         saveData();
         render();
         showToast("Backup imported.");
@@ -2807,7 +2819,10 @@
 
     loadData();
     const savedFlipState = state.isFlipped;
-    if (getReviewSession()) activateReviewSession();
+    if (getReviewSession()) {
+      activateReviewSession();
+      saveData();
+    }
     else if (getStackSession()?.active) activateStackSession(state.activeCardId);
     else rebuildSession(state.activeCardId);
     state.isFlipped = savedFlipState;
