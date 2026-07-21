@@ -1692,7 +1692,7 @@
       return Boolean(getStackSession()?.active);
     }
 
-    function getReviewSession() {
+    function getReviewSession(includeSuspended = false) {
       const review = state.reviewSession;
       const deck = getActiveDeck();
       if (!review || !deck || review.deckId !== deck.id) return null;
@@ -1702,7 +1702,9 @@
       review.round = Math.max(1, Number(review.round) || 1);
       review.index = Math.max(0, Math.min(Number(review.index) || 0, review.orderIds.length));
       review.phase = ["round", "summary", "mastered"].includes(review.phase) ? review.phase : "round";
+      review.suspended = Boolean(review.suspended);
       if (review.phase === "round" && !review.orderIds.length) review.phase = review.nextMissedIds.length ? "summary" : "mastered";
+      if (review.suspended && !includeSuspended) return null;
       return review;
     }
 
@@ -1741,7 +1743,8 @@
         orderIds,
         index: 0,
         nextMissedIds: [],
-        phase: "round"
+        phase: "round",
+        suspended: false
       };
       state.sessionIds = [...orderIds];
       state.activeCardId = state.sessionIds[0];
@@ -1857,7 +1860,13 @@
       const session = getStackSession();
       if (session && confirm(`Resume the saved session at Stack ${session.stackIndex + 1}? Select Cancel to configure a new session.`)) {
         session.active = true;
-        activateStackSession(session.currentCardId);
+        const savedReview = getReviewSession(true);
+        if (savedReview && savedReview.stackIndex === session.stackIndex) {
+          savedReview.suspended = false;
+          activateReviewSession();
+        } else {
+          activateStackSession(session.currentCardId);
+        }
         saveData();
         if (matchMedia("(max-width: 720px)").matches) setMobileView("study");
         render();
@@ -1885,8 +1894,16 @@
 
     function restartStackSession() {
       const session = getStackSession();
-      if (!session || !confirm("Restart this stack session from Stack 1?")) return;
-      resetStackSession(session);
+      if (!session) return;
+      const review = getReviewSession();
+      if (review) {
+        if (!confirm("Restart this stack session? Your current stack and missed-review progress will be cleared.")) return;
+        state.reviewSession = null;
+        resetStackSession(session, session.shuffled);
+      } else {
+        if (!confirm("Restart this stack session from Stack 1?")) return;
+        resetStackSession(session);
+      }
       showToast("Stack session restarted.");
     }
 
@@ -1916,6 +1933,18 @@
 
     function exitStackMode() {
       const session = getStackSession();
+      const review = getReviewSession();
+      if (session && review) {
+        if (!confirm("Exit stack mode? Your current stack and review progress will be saved so you can resume later.")) return;
+        review.suspended = true;
+        session.active = false;
+        session.currentCardId = state.activeCardId;
+        state.missedOnly = false;
+        rebuildSession(null, state.shuffle);
+        saveData();
+        render();
+        return;
+      }
       if (session) {
         const resumeLater = confirm("Keep this stack session so you can resume it later? Select Cancel to discard its progress.");
         if (resumeLater) {
@@ -2244,8 +2273,8 @@
       els.nextStackBtn.disabled = Boolean(review) || !stackSession
         || stackSession.stackIndex >= totalStacks - 1
         || !["summary", "complete"].includes(getStackResult(stackSession).phase);
-      els.restartStacksBtn.disabled = Boolean(review) || !stackSession;
-      els.exitStacksBtn.disabled = Boolean(review) || !stackSession;
+      els.restartStacksBtn.disabled = !stackSession;
+      els.exitStacksBtn.disabled = !stackSession;
       els.dontKnowBtn.textContent = review || stackSession ? "Missed" : "Don't Know";
       els.knowBtn.textContent = review || stackSession ? "Known" : "Know";
     }
