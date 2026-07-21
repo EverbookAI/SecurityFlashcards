@@ -1451,8 +1451,9 @@
           <div class="form-actions" id="stackControls" hidden>
             <button class="secondary-btn" id="previousStackBtn" type="button">Previous Stack</button>
             <button class="secondary-btn" id="nextStackBtn" type="button">Next Stack</button>
-            <button class="secondary-btn" id="restartStacksBtn" type="button">Restart Stacks</button>
+            <button class="secondary-btn" id="restartCurrentStackBtn" type="button">Restart Current Stack</button>
             <button class="secondary-btn" id="exitStacksBtn" type="button">Exit Stack Mode</button>
+            <button class="danger-btn" id="restartStacksBtn" type="button">Restart All Stacks</button>
           </div>
 
           <div class="card-stage" id="cardStage"></div>
@@ -1589,6 +1590,7 @@
       stackControls: document.getElementById("stackControls"),
       previousStackBtn: document.getElementById("previousStackBtn"),
       nextStackBtn: document.getElementById("nextStackBtn"),
+      restartCurrentStackBtn: document.getElementById("restartCurrentStackBtn"),
       restartStacksBtn: document.getElementById("restartStacksBtn"),
       exitStacksBtn: document.getElementById("exitStacksBtn"),
       cardStage: document.getElementById("cardStage"),
@@ -1892,19 +1894,28 @@
       render();
     }
 
-    function restartStackSession() {
+    function restartCurrentStack() {
       const session = getStackSession();
       if (!session) return;
-      const review = getReviewSession();
-      if (review) {
-        if (!confirm("Restart this stack session? Your current stack and missed-review progress will be cleared.")) return;
+      if (!confirm("Restart the current stack? Progress for this stack and its missed-review rounds will be cleared.")) return;
+      if (state.reviewSession?.deckId === state.activeDeckId && state.reviewSession.stackIndex === session.stackIndex) {
         state.reviewSession = null;
-        resetStackSession(session, session.shuffled);
-      } else {
-        if (!confirm("Restart this stack session from Stack 1?")) return;
-        resetStackSession(session);
       }
-      showToast("Stack session restarted.");
+      delete session.results[String(session.stackIndex)];
+      session.currentCardId = null;
+      session.active = true;
+      activateStackSession(null);
+      saveData();
+      render();
+      showToast(`Stack ${session.stackIndex + 1} restarted.`);
+    }
+
+    function restartAllStacks() {
+      const session = getStackSession();
+      if (!session || !confirm("Restart the entire stack session? All stack and review progress will be cleared.")) return;
+      if (state.reviewSession?.deckId === state.activeDeckId) state.reviewSession = null;
+      resetStackSession(session, session.shuffled);
+      showToast("All stacks restarted.");
     }
 
     function resetStackSession(session, reshuffle = false) {
@@ -2274,6 +2285,7 @@
         || stackSession.stackIndex >= totalStacks - 1
         || !["summary", "complete"].includes(getStackResult(stackSession).phase);
       els.restartStacksBtn.disabled = !stackSession;
+      els.restartCurrentStackBtn.disabled = !stackSession;
       els.exitStacksBtn.disabled = !stackSession;
       els.dontKnowBtn.textContent = review || stackSession ? "Missed" : "Don't Know";
       els.knowBtn.textContent = review || stackSession ? "Known" : "Know";
@@ -2703,7 +2715,8 @@
     });
     els.previousStackBtn.addEventListener("click", () => changeStack(-1));
     els.nextStackBtn.addEventListener("click", () => changeStack(1));
-    els.restartStacksBtn.addEventListener("click", restartStackSession);
+    els.restartCurrentStackBtn.addEventListener("click", restartCurrentStack);
+    els.restartStacksBtn.addEventListener("click", restartAllStacks);
     els.exitStacksBtn.addEventListener("click", exitStackMode);
 
     els.deleteDeckBtn.addEventListener("click", () => {
